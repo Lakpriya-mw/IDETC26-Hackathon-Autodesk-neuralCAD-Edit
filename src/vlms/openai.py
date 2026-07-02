@@ -3,8 +3,6 @@ from .base_vlm import BaseVLM, GenerateResponseResult
 import os
 import base64
 import json
-import io
-from PIL import Image
 
 class VLM(BaseVLM):
     """
@@ -28,19 +26,6 @@ class VLM(BaseVLM):
         openai.api_key = self.openai_api_key
         self.client = openai.OpenAI(api_key=self.openai_api_key)
 
-    def load_video(self, video_path: str) -> dict:
-        np_frames = super().load_video(video_path)
-
-        # convert to jpg in memory and then to base64
-        base64_frames = []
-        for frame in np_frames:
-            pil_img = Image.fromarray(frame)
-            buff = io.BytesIO()
-            pil_img.save(buff, format="PNG")
-            base64_frame = base64.b64encode(buff.getvalue()).decode('utf-8')
-            base64_frames.append(base64_frame)
-        return base64_frames
-
     def load_image(self, image_path: str) -> str:
         with open(image_path, "rb") as img_file:
             base64_image = base64.b64encode(img_file.read()).decode('utf-8')
@@ -54,14 +39,7 @@ class VLM(BaseVLM):
         # make user message
         user_message = {"role": "user", "content": []}
         for i, part in enumerate(inputs):
-            if part.endswith(".mp4"):
-                frames = self.load_video(part)
-                for frame in frames:
-                    user_message["content"].append({
-                        "type": "input_image",
-                        "image_url":  f"data:image/png;base64,{frame}"
-                    })
-            elif part.endswith(".png"):
+            if part.endswith(".png"):
                 image = self.load_image(part)
                 user_message["content"].append({
                     "type": "input_image",

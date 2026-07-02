@@ -41,11 +41,7 @@ class VLM(BaseVLM):
 
         parts = []
         for i, part in enumerate(inputs):
-            if part.endswith(".mp4"):
-                # resized video
-                video_bytes = open(part, "rb").read()
-                parts.append(types.Part(inline_data=types.Blob(data=video_bytes, mime_type='video/mp4')))
-            elif part.endswith(".png"):
+            if part.endswith(".png"):
                 # image
                 image_bytes = open(part, "rb").read()
                 parts.append(types.Part(inline_data=types.Blob(data=image_bytes, mime_type='image/png')))

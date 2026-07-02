@@ -5,7 +5,6 @@ import random
 import subprocess
 import json
 import shutil
-import cv2
 
 class GenerateResponseResult:
     def __init__(self, response_json=None, response_text=None, token_counts=None, thinking_text=None):
@@ -16,90 +15,20 @@ class GenerateResponseResult:
 
 class BaseVLM(ABC):
     """
-    A base class for Vision-Language Models (VLMs) that can load videos.
+    A base class for Vision-Language Models (VLMs).
     """
 
     def __init__(self, config: dict, cache: bool = True):
-        """
-        Initializes the VLM with a specified backend.
-
-        Args:
-            backend (str): The backend to use for video processing. Default is "decord".
-        """
-        self.backend = config["backend"]
-        assert self.backend in ["decord", "ffmpeg", "cv2"], f"Unsupported backend: {self.backend}"
-
-        if self.backend == "decord":
-            import decord
-            self.decord = decord
-        elif self.backend == "ffmpeg":
-            pass
-        elif self.backend == "cv2":
-            import cv2
-            self.cv2 = cv2
-
+        self.config = config
         self.cache = cache
-
-    def load_video_ffmpeg(self, video_path: str) -> str:
-        return video_path
-    
-    def load_video(self, video_path: str) -> list:
-        """
-        Loads a video file.
-
-        Args:
-            video_path (str): Path to the video file.
-
-        Returns:
-            list: A list of frames (as numpy arrays) from the video.
-        """
-        if self.backend == "decord":
-
-            vr = self.decord.VideoReader(video_path)
-            n_in_frames = len(vr)
-            in_fps = float(vr.get_avg_fps())
-
-            subsample_every = self.config.get("subsample_every", 1)
-
-
-            out_fps = float(self.config["fps"])
-            n_out_frames = int(n_in_frames * out_fps / in_fps / subsample_every)
-
-            frame_indexes = [int(i * in_fps / out_fps) for i in range(n_out_frames)]
-
-            if self.config.get("max_frames", -1) > 0:
-                frame_indexes = frame_indexes[:self.config["max_frames"]]
-
-            # frame_indexes = [int(i * in_fps / out_fps) for i in range(n_in_frames)]
-            frames = [vr[i].asnumpy() for i in frame_indexes]
-
-            if self.config.get("downsample_vertical_resolution", None):
-                # resize frames to have the specified vertical resolution while maintaining aspect ratio
-                vertical_resolution = self.config["downsample_vertical_resolution"]
-                frames_resized = []
-                for frame in frames:
-                    h, w, c = frame.shape
-                    aspect_ratio = w / h
-                    new_h = vertical_resolution
-                    new_w = int(aspect_ratio * new_h)
-                    resized_frame = cv2.resize(frame, (new_w, new_h))
-                    frames_resized.append(resized_frame)
-                frames = frames_resized
-
-            return frames
-        elif self.backend == "ffmpeg":
-            return video_path
-
-        else:
-            raise ValueError(f"Unsupported backend: {self.backend}")
 
     @abstractmethod
     def create_messages(self, inputs: list, sys=None) -> list:
         """
-        Creates messages from interleaved inputs such as video paths, images, and text.
+        Creates messages from interleaved inputs such as images and text.
 
         Args:
-            inputs (list): A list of interleaved inputs (e.g., video paths, image paths, text).
+            inputs (list): A list of interleaved inputs (e.g., image paths, text).
         Returns:
             list: A list of formatted messages for the VLM.
         """
@@ -138,11 +67,11 @@ class BaseVLM(ABC):
 
     def run_single_edit_file_only(self, db, request_id, output_path: str) -> None:
         """
-        Runs a single edit on the video and saves the output.
+        Runs a single edit from text instruction and saves the output.
 
         Args:
-            video_path (str): Path to the input video file.
-            output_path (str): Path to save the edited video.
+            request_id (str): ID of the request to process.
+            output_path (str): Path to save the output.
         """
 
         request = db.requests.find_one({"_id": request_id})
@@ -155,29 +84,24 @@ class BaseVLM(ABC):
         if not os.path.exists(brep_fn):
             raise ValueError(f"BREP file does not exist: {brep_fn}")
 
-
         brep = self.load_brep(brep_fn)
-        fps = f"Video is at {self.config['fps']} fps."
-        video_path = request[f"{self.config['fps']}_{self.config['resolution']}"]
-        if video_path is None:
-            raise ValueError(f"Video path not found for request ID {request_id}.")
-        if not os.path.exists(video_path):
-            raise ValueError(f"Video file does not exist: {video_path}")
+        instruction_text = request.get("text", "") or ""
 
-        messages = self.create_messages([video_path, f"brep file: {brep}", self.config["prompt"], fps], sys=self.config["system_prompt"])
+        messages = self.create_messages(
+            [f"Instruction text:\n{instruction_text}", f"brep file: {brep}", self.config["prompt"]],
+            sys=self.config["system_prompt"],
+        )
         response = self.generate_response(messages, output_path=output_path).response_json
         self.clean_up(messages)
         return response
     
 
-    def run_rating_video_images(self, db, edit_id, output_path) -> None:
+    def run_rating_images(self, db, edit_id, output_path) -> None:
         """
-        Runs a rating on the video and saves the output.
+        Runs a rating on an edit using text instruction and images.
 
         Args:
-            edit_instruction (dict): Edit instruction containing the video path and other parameters.
-            brep_path_start (str): Path to the starting BREP file.
-            brep_path_end (str): Path to the ending BREP file.
+            edit_id (str): ID of the edit to rate.
             output_path (str): Path to save the rating in a json file.
         """
         edit_entry = db.edits.find_one({"_id": edit_id})
@@ -195,30 +119,21 @@ class BaseVLM(ABC):
         end_breps = db.get_brep_images(end_brep_id["_id"], views=self.config["views_edit"])
         end_breps = [osp.join(db.root_dir, end_brep) for end_brep in end_breps]
 
-        audio_str = "_audio" if self.config.get("audio", False) else ""
-        video_path = request_entry[f"{self.config['fps']}_{self.config['resolution']}{audio_str}"]
-        video_path = osp.join(db.root_dir, video_path) if video_path else None
-
-        if 'text' in request_entry and request_entry['text']:
-            request_text = f"Instruction text: \n{request_entry['text']}"
+        if request_entry.get("text"):
+            request_text = f"Instruction text:\n{request_entry['text']}"
         else:
             request_text = ""
 
-        # print(video_path, *start_breps, *end_breps)
-
-        fps = f"Video is at {self.config['fps']} fps. "
         start = "Initial cad model: "
         end = "Edited cad model: "
         messages = self.create_messages(
             [
-                video_path, 
                 request_text,
                 start, 
                 *start_breps,
                 end,
                 *end_breps,
                 self.config["prompt"],
-                fps
             ],
             sys=self.config["system_prompt"])
         response = self.generate_response(messages, output_path=output_path).response_json
@@ -226,33 +141,22 @@ class BaseVLM(ABC):
         return response
 
 
-    # def run_ranking_video_images(self, edit_instruction: dict, image_path_start: str, image_paths_end: list[str], output_path: str) -> None:
-    def run_ranking_video_images(self, db, request_id, output_path: str):
+    def run_ranking_images(self, db, request_id, output_path: str):
         """
-        Runs a rating on the video and saves the output.
+        Runs a ranking on edits using text instruction and images.
 
         Args:
-            edit_instruction (dict): Edit instruction containing the video path and other parameters.
-            brep_path_start (str): Path to the starting BREP file.
-            brep_path_end (str): Path to the ending BREP file.
-            output_path (str): Path to save the rating in a json file.
+            request_id (str): ID of the request to rank edits for.
+            output_path (str): Path to save the ranking in a json file.
         """
-        fps = f"Video is at {self.config['fps']} fps. "
         start = "Initial cad model: "
-
-        # print(f"Request ID: {request_id}")
 
         request_entry = db.requests.find_one({"_id": request_id})
 
-        audio_str = "_audio" if self.config.get("audio", False) else ""
-        video_path = request_entry[f"{self.config['fps']}_{self.config['resolution']}{audio_str}"]
-        video_path = osp.join(db.root_dir, video_path) if video_path else None
-
-        transcript = request_entry.get("transcript", None)
-        if transcript is None:
-            transcript_text = ""
+        if request_entry.get("text"):
+            request_text = f"Instruction text:\n{request_entry['text']}"
         else:
-            transcript_text = f'\nInstruction transcript: {transcript["segments"]}\n'
+            request_text = ""
         
         start_breps = db.breps.find_one({"_id": request_entry["brep_start"]})
         start_breps = db.get_brep_images(start_breps["_id"], views=self.config["views_request"])
@@ -266,9 +170,7 @@ class BaseVLM(ABC):
         random.shuffle(edits_list)
 
         messages_list = [
-                video_path,
-                transcript_text,
-                fps,
+                request_text,
                 start, 
                 *start_breps,
                 self.config["prompt"],
@@ -303,13 +205,11 @@ class BaseVLM(ABC):
 
     def run_edit_cot_gen(self, db, edit_id, output_path) -> None:
         """
-        Runs a rating on the video and saves the output.
+        Runs chain-of-thought generation for an edit using text instruction and images.
 
         Args:
-            edit_instruction (dict): Edit instruction containing the video path and other parameters.
-            brep_path_start (str): Path to the starting BREP file.
-            brep_path_end (str): Path to the ending BREP file.
-            output_path (str): Path to save the rating in a json file.
+            edit_id (str): ID of the edit to process.
+            output_path (str): Path to save the output in a json file.
         """
         edit_entry = db.edits.find_one({"_id": edit_id})
 
@@ -326,16 +226,7 @@ class BaseVLM(ABC):
         end_breps = db.get_brep_images(end_brep_id["_id"], views=self.config["views_edit"])
         end_breps = [osp.join(db.root_dir, end_brep) for end_brep in end_breps]
 
-        audio_str = "_audio" if self.config.get("audio", False) else ""
-        video_path = request_entry[f"{self.config['fps']}_{self.config['resolution']}{audio_str}"]
-        video_path = osp.join(db.root_dir, video_path) if video_path else None
-
-        transcript = request_entry.get("transcript", None)
-
-        if transcript is None:
-            transcript = []
-        else:
-            transcript = transcript["segments"]
+        instruction_text = request_entry.get("text", "") or ""
         events = edit_entry.get("events", [])
 
         frames_dir = osp.join(db.root_dir, edit_entry["frames_dir"])
@@ -369,9 +260,7 @@ class BaseVLM(ABC):
         message_list = []
         if "request" in self.config["fields"]:
             message_list.extend([
-                video_path, 
-                f"Edit instruction video is at {self.config['fps']} fps.",
-                f"Transcript: {transcript}",
+                f"Instruction text:\n{instruction_text}",
                 "Initial cad model: ", 
                 *start_breps,
             ])

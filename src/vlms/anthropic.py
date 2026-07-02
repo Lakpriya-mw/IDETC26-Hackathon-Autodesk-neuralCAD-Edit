@@ -3,8 +3,6 @@ from .base_vlm import BaseVLM, GenerateResponseResult
 import os
 import base64
 import json
-import io
-from PIL import Image
 
 class VLM(BaseVLM):
     """
@@ -29,20 +27,6 @@ class VLM(BaseVLM):
         
         self.client = anthropic.Anthropic(api_key=self.anthropic_api_key)
 
-    def load_video(self, video_path: str) -> list:
-        """Load video and convert frames to base64 format."""
-        np_frames = super().load_video(video_path)
-
-        # Convert to PNG in memory and then to base64
-        base64_frames = []
-        for frame in np_frames:
-            pil_img = Image.fromarray(frame)
-            buff = io.BytesIO()
-            pil_img.save(buff, format="PNG")
-            base64_frame = base64.b64encode(buff.getvalue()).decode('utf-8')
-            base64_frames.append(base64_frame)
-        return base64_frames
-
     def load_image(self, image_path: str) -> str:
         """Load image file and convert to base64."""
         with open(image_path, "rb") as img_file:
@@ -66,19 +50,7 @@ class VLM(BaseVLM):
             if part is None or part == "":
                 continue
 
-
-            if part.endswith(".mp4"):
-                frames = self.load_video(part)
-                for frame in frames:
-                    content.append({
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": frame
-                        }
-                    })
-            elif part.endswith(".png"):
+            if part.endswith(".png"):
                 image = self.load_image(part)
                 content.append({
                     "type": "image",
