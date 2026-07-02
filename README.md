@@ -1,11 +1,13 @@
-# neuralCAD-Edit
+# IDETC 2026 Hackathon
+# Autodesk neuralCAD-Edit Problem
 
-This repo contains the code for neuralCAD-Edit, a 3D CAD editing dataset and benchmark introduced in the paper: [neuralCAD-Edit: An Expert Benchmark for Multimodal-Instructed 3D CAD Model Editing](https://autodeskailab.github.io/neuralCAD-Edit/)
+This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, based on the 3D CAD editing dataset and benchmark introduced in the paper: [neuralCAD-Edit: An Expert Benchmark for Multimodal-Instructed 3D CAD Model Editing](https://autodeskailab.github.io/neuralCAD-Edit/)
 
 ![fig_01](img/fig_1.png)
 
 
 We provide:
+- [The problem statement PDF](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
 - A dataset of 192 editing requests and 384 edits.
 - Code for accessing the data.
 - Notebooks for visualising and analysing the data.
@@ -13,7 +15,7 @@ We provide:
 - All outputs of the foundation models we run in the paper and report results on.
 - All automatic, human and VLM evaluations.
 
-Instructions are provided below, but please get in touch if you would like help, or would like us to run a human eval process for you with the same workforce.
+Instructions are provided below, but please get in touch if you have any questions.
 
 ### Setup
 
@@ -23,7 +25,7 @@ Instructions are provided below, but please get in touch if you would like help,
 ### Download and visualise data (recommended)
 
 1. Download the pre-computed database to a desired local location. It's currently stored here: ```https://huggingface.co/datasets/autodesk/neuralCAD-Edit```
-2. Set the `storage_dir` in the config to where the data has been saved.
+2. Set `storage_dir` in `src/config/edit_192_external.json` to where the data has been saved.
 3. You're good to go - try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
 
 ### Repo structure
