@@ -8,7 +8,7 @@ This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, b
 
 We provide:
 - [The problem statement PDF](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
-- A dataset of 192 editing requests and 384 edits.
+- A dataset of 48 text-based editing requests and associated edits.
 - Code for accessing the data.
 - Notebooks for visualising and analysing the data.
 - Harness code which allows foundation models to perform edits with iterative cadquery script refinement.
@@ -61,7 +61,7 @@ Instructions are provided below, but please get in touch if you have any questio
 
 The dataset/benchmark is organised in a local mongita database with the following schemas
 
-- requests: contains all information about the request (video, transcription, etc).
+- requests: contains all information about the request (text instruction, etc).
 - edits: contains all the information about an edit (screengrabs, fusion actions etc.)
 - users: humans/ML models who have created requests, edits, or evaluations/rankings
 - breps: contains all the information about a brep: .f3d .smt .stl, iso and 6-orthographic images, dino v2 features etc.
