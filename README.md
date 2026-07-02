@@ -22,10 +22,15 @@ Instructions are provided below, but please get in touch if you have any questio
 1. Clone this repo
 2. `conda env create -f environment.yml`
 
-### Download and visualise data (recommended)
+### Download and visualise data
 
-1. Download the pre-computed database to a desired local location. It's currently stored here: ```https://huggingface.co/datasets/autodesk/neuralCAD-Edit```
-2. Set `storage_dir` in `src/config/edit_192_external.json` to where the data has been saved.
+> **⚠️ Important:**  
+> This hackathon problem uses data that is **significantly different** from the original dataset.  
+>  
+> **Use the data linked below for this competition, do _not_ use previous versions of the dataset.**
+
+1. Download the pre-computed database to a desired local location. It's currently stored here: ```onedrive link pending```
+2. Make sure to set `storage_dir` in `src/config/edit_192_external.json` to where the data has been saved.
 3. You're good to go - try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
 
 ### Repo structure

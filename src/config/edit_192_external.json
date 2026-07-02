@@ -16,7 +16,7 @@
     },
     "storage_dir": {
         "type": "local",
-        "path": "/Users/perrett/fusion_data/edit_database/edit_192_external"
+        "path": "data/edit_192_external"
     },
     "groundtruth_dir": {
         "type": "local",
