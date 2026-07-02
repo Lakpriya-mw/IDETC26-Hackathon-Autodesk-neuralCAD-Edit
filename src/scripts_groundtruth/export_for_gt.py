@@ -55,15 +55,6 @@ def export_files(config: dict, dbm: DatabaseManager, output_folder_relative: str
                     print(f"Error copying input 3D model for request {request['_id']}: {e}")
 
 
-            video_key = "30_720_audio"
-            if video_key in request:
-                video_path = os.path.join(dbm.root_dir, request[video_key])
-                video_filename = os.path.basename(video_path)
-                video_dst_path = os.path.join(output_folder, video_filename)
-                shutil.copy(video_path, video_dst_path)
-                video_s3_path = os.path.join(s3_base_path, video_filename)
-                request_manifest["instruction"]["video"] = video_s3_path
-
             if "text" in request and request["text"]:
                 request_manifest["instruction"]["text"] = request["text"]
 

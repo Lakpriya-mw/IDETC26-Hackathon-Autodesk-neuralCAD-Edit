@@ -34,9 +34,6 @@ def crawl_and_load(db, annotations_dir):
                 is_human=data.get("isHuman", True)
             )
 
-            video_path = osp.join(folder_path, "screen_recording.mov")
-            video_path = video_path if osp.exists(video_path) else None
-
             # brep_start_folder = osp.join(folder_path, "brep_start")
             brep_start_folder = os.listdir(osp.join(folder_path, "brep_start"))[0]
             brep_start_folder = osp.join(folder_path, "brep_start", brep_start_folder)
@@ -68,7 +65,6 @@ def crawl_and_load(db, annotations_dir):
                     user=data["userId"],
                     difficulty=data.get("edit_difficulty", None),
                     brep_start=brep_id,
-                    instructions=video_path,
                     start_time=None, # start time from quicktime is not valid
                     end_time=data["end_time"],
                     events=data.get("events", []),
@@ -78,15 +74,6 @@ def crawl_and_load(db, annotations_dir):
                     prompt=data.get("prompt", None),
                 )
 
-            # check if it already contains a corrected transcription (not aligned yet)
-            transcript_fn = osp.join(folder_path, "screen_recording_transcript", "screen_recording_transcript_segments.json")
-            if osp.exists(transcript_fn):
-                with open(transcript_fn, "r") as f:
-                    transcript_data = json.load(f)
-                db.requests.update_one(
-                    {"_id": data["edit_request_id"]},
-                    {"$set": {"corrected_transcript_segments": transcript_data}}
-                )
         
         # Check if this directory contains a "brep_end" subdirectory for actions
         if "brep_end" in dirs:

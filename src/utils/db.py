@@ -27,7 +27,8 @@ class DatabaseManager:
         self.db = self.client[config["db_name"]]
         # Collections
         self.users = self.db['users']
-        self.breps = self.db['breps']
+        breps_collection = config.get("breps_collection", "breps")
+        self.breps = self.db[breps_collection]
         self.requests = self.db['requests']
         self.edits = self.db['edits']
         self.ratings = self.db['ratings']
@@ -47,8 +48,6 @@ class DatabaseManager:
         return path
 
     def make_dirs(self):
-        self.video_dir = "videos"
-        os.makedirs(osp.join(self.root_dir, self.video_dir), exist_ok=True)
         self.frames_dir = "frames"
         os.makedirs(osp.join(self.root_dir, self.frames_dir), exist_ok=True)
         self.brep_dir = "breps"
@@ -190,7 +189,7 @@ class DatabaseManager:
             "_id": request_id,
         }) > 0
 
-    def insert_request(self, request_id, user, difficulty=None, brep_start=None, instructions=None, start_time=None, end_time=None, text=None, events=[], frames_dir=None, filename=None, request_type=None, prompt=None):
+    def insert_request(self, request_id, user, difficulty=None, brep_start=None, start_time=None, end_time=None, text=None, events=[], frames_dir=None, filename=None, request_type=None, prompt=None):
         if not self.request_exists(request_id):
             self.requests.insert_one({
                 "_id": request_id,
@@ -206,17 +205,6 @@ class DatabaseManager:
                 "request_type": request_type,
                 "prompt": prompt
             })
-
-            if instructions is not None:
-                # Copy the video file to the storage directory
-                ext = osp.splitext(instructions)[-1]
-                new_video_path = osp.join(self.root_dir, self.video_dir, f"{request_id}{ext}")
-                if not osp.exists(instructions):
-                    print(f"File {instructions} does not exist.")
-                else:
-                    if not osp.exists(new_video_path):
-                        shutil.copy(instructions, new_video_path)
-                    self.requests.update_one({"_id": request_id}, {"$set": {"instructions": self.strip_root_dir(new_video_path)}})
 
             print("Request inserted successfully!")
             return request_id
@@ -370,7 +358,10 @@ class DatabaseManager:
         # print the number of documents in each collection
         for collection_name in self.db.list_collection_names():
             collection = self.db[collection_name]
-            count = collection.count_documents({})
+            try:
+                count = collection.count_documents({})
+            except Exception as e:
+                count = f"unavailable ({e})"
             print(f"Collection: {collection_name}, Count: {count}")
 
     def verify_db(self):
@@ -410,5 +401,207 @@ class DatabaseManager:
             if not request:
                 print(f"Ranking {ranking['_id']} does not have a corresponding request.")
 
+    def prune_to_modalities(self, keep_modalities=None, delete_files=True):
+        """
+        Keep only requests whose modality is in keep_modalities and cascade-delete
+        dependent records and optionally on-disk files.
+        """
+        if keep_modalities is None:
+            keep_modalities = ["text"]
+
+        print("Before pruning:")
+        self.print_db_schema_counts()
+
+        all_requests = list(self.requests.find())
+        keep_ids = {
+            request["_id"]
+            for request in all_requests
+            if request.get("modality") in keep_modalities
+        }
+        delete_ids = {request["_id"] for request in all_requests if request["_id"] not in keep_ids}
+
+        print(f"Keeping {len(keep_ids)} requests with modalities {keep_modalities}")
+        print(f"Deleting {len(delete_ids)} requests")
+
+        deleted_brep_ids = set()
+        deleted_frame_dirs = set()
+
+        for request_id in delete_ids:
+            edits = list(self.edits.find({"request": request_id}))
+            for edit in edits:
+                if edit.get("brep_end"):
+                    deleted_brep_ids.add(edit["brep_end"])
+                if edit.get("frames_dir"):
+                    deleted_frame_dirs.add(edit["frames_dir"])
+                self.ratings.delete_many({"edit": edit["_id"]})
+                self.cots.delete_many({"edit": edit["_id"]})
+
+            request = self.requests.find_one({"_id": request_id})
+            if request and request.get("brep_start"):
+                deleted_brep_ids.add(request["brep_start"])
+            if request and request.get("frames_dir"):
+                deleted_frame_dirs.add(request["frames_dir"])
+
+            self.edits.delete_many({"request": request_id})
+            self.rankings.delete_many({"request": request_id})
+            self.requests.delete_one({"_id": request_id})
+
+        referenced_brep_ids = set()
+        for request in self.requests.find():
+            if request.get("brep_start"):
+                referenced_brep_ids.add(request["brep_start"])
+        for edit in self.edits.find():
+            if edit.get("brep_end"):
+                referenced_brep_ids.add(edit["brep_end"])
+
+        orphan_brep_ids = deleted_brep_ids - referenced_brep_ids
+        for brep_id in orphan_brep_ids:
+            brep = self.breps.find_one({"_id": brep_id})
+            if brep and delete_files:
+                self._delete_brep_files(brep)
+            self.breps.delete_one({"_id": brep_id})
+
+        referenced_frame_dirs = set()
+        for request in self.requests.find():
+            if request.get("frames_dir"):
+                referenced_frame_dirs.add(request["frames_dir"])
+        for edit in self.edits.find():
+            if edit.get("frames_dir"):
+                referenced_frame_dirs.add(edit["frames_dir"])
+
+        orphan_frame_dirs = deleted_frame_dirs - referenced_frame_dirs
+        if delete_files:
+            videos_dir = osp.join(self.root_dir, "videos")
+            if osp.isdir(videos_dir):
+                shutil.rmtree(videos_dir)
+                print(f"Removed directory: {videos_dir}")
+
+            for frame_dir in orphan_frame_dirs:
+                abs_frame_dir = osp.join(self.root_dir, frame_dir)
+                if osp.isdir(abs_frame_dir):
+                    shutil.rmtree(abs_frame_dir)
+                    print(f"Removed directory: {abs_frame_dir}")
+
+        print("After pruning:")
+        self.print_db_schema_counts()
+
+    def rebuild_breps_collection(self):
+        """Rebuild the breps collection from on-disk files for referenced brep IDs."""
+        needed_ids = set()
+        brep_users = {}
+        brep_end_times = {}
+
+        for request in self.requests.find():
+            if request.get("brep_start"):
+                needed_ids.add(request["brep_start"])
+                brep_users[request["brep_start"]] = request["user"]
+                brep_end_times[request["brep_start"]] = request.get("end_time")
+        for edit in self.edits.find():
+            if edit.get("brep_end"):
+                needed_ids.add(edit["brep_end"])
+                brep_users[edit["brep_end"]] = edit["user"]
+                brep_end_times[edit["brep_end"]] = edit.get("end_time")
+
+        brep_dir = osp.join(self.root_dir, self.brep_dir)
+        extensions = ["stp", "obj", "png", "jpg", "f3d", "stl", "step", "smt"]
+        rebuilt = 0
+
+        for brep_id in sorted(needed_ids):
+            ext_files = {ext: [] for ext in extensions}
+            if osp.isdir(brep_dir):
+                for fname in os.listdir(brep_dir):
+                    if not fname.startswith(brep_id):
+                        continue
+                    remainder = fname[len(brep_id):]
+                    if remainder and not remainder.startswith((".", "_")):
+                        continue
+                    ext = osp.splitext(fname)[-1][1:]
+                    if ext in ext_files:
+                        ext_files[ext].append(self.strip_root_dir(osp.join(brep_dir, fname)))
+
+            ext_files = {k: v for k, v in ext_files.items() if v}
+            if not ext_files:
+                print(f"Warning: no on-disk files found for brep {brep_id}")
+                continue
+
+            brep_doc = {
+                "_id": brep_id,
+                "user": brep_users.get(brep_id, ""),
+                "orig-path": "",
+                "end_time": brep_end_times.get(brep_id),
+            }
+            brep_doc.update(ext_files)
+            # Delete any existing doc first so the rebuild is idempotent and can
+            # be re-run without raising a DuplicateKeyError.
+            self.breps.delete_one({"_id": brep_id})
+            self.breps.insert_one(brep_doc)
+            rebuilt += 1
+
+        print(f"Rebuilt {rebuilt} brep documents")
+
+    def cleanup_orphan_files(self):
+        """Remove videos and brep/frame files not referenced by the current database."""
+        needed_brep_ids = set()
+        needed_frame_dirs = set()
+
+        for request in self.requests.find():
+            if request.get("brep_start"):
+                needed_brep_ids.add(request["brep_start"])
+            if request.get("frames_dir"):
+                needed_frame_dirs.add(request["frames_dir"])
+        for edit in self.edits.find():
+            if edit.get("brep_end"):
+                needed_brep_ids.add(edit["brep_end"])
+            if edit.get("frames_dir"):
+                needed_frame_dirs.add(edit["frames_dir"])
+
+        videos_dir = osp.join(self.root_dir, "videos")
+        if osp.isdir(videos_dir):
+            shutil.rmtree(videos_dir)
+            print(f"Removed directory: {videos_dir}")
+
+        brep_dir = osp.join(self.root_dir, self.brep_dir)
+        removed_brep_files = 0
+        if osp.isdir(brep_dir):
+            for fname in os.listdir(brep_dir):
+                matched = False
+                for brep_id in needed_brep_ids:
+                    if fname.startswith(brep_id):
+                        remainder = fname[len(brep_id):]
+                        if remainder == "" or remainder.startswith((".", "_")):
+                            matched = True
+                            break
+                if not matched:
+                    os.remove(osp.join(brep_dir, fname))
+                    removed_brep_files += 1
+        if removed_brep_files:
+            print(f"Removed {removed_brep_files} orphan brep files")
+
+        frames_root = osp.join(self.root_dir, self.frames_dir)
+        if osp.isdir(frames_root):
+            for entry in os.listdir(frames_root):
+                rel_dir = osp.join(self.frames_dir, entry)
+                if rel_dir not in needed_frame_dirs:
+                    abs_dir = osp.join(frames_root, entry)
+                    if osp.isdir(abs_dir):
+                        shutil.rmtree(abs_dir)
+                        print(f"Removed directory: {abs_dir}")
+
+    def _delete_brep_files(self, brep):
+        extensions = ["stp", "obj", "png", "jpg", "f3d", "stl", "step", "smt"]
+        removed = 0
+        for ext in extensions:
+            if ext not in brep:
+                continue
+            for rel_path in brep[ext]:
+                abs_path = osp.join(self.root_dir, rel_path)
+                if osp.isfile(abs_path):
+                    os.remove(abs_path)
+                    removed += 1
+        if removed:
+            print(f"Removed {removed} brep files for {brep['_id']}")
+
     def close_connection(self):
-        self.client.close()
+        if self.client is not None:
+            self.client.close()
+            self.client = None

@@ -23,7 +23,7 @@ task_instructions = {
 def add_root_dir_to_files(task_dict, root_dir):
     import numpy as np
     
-    extensions = ("png", "jpg", "jpeg", "f3d", "step", "smt", "stp", "stl", "mp4")
+    extensions = ("png", "jpg", "jpeg", "f3d", "step", "smt", "stp", "stl")
     
     def process_item(item):
         if isinstance(item, str) and item.endswith(extensions):

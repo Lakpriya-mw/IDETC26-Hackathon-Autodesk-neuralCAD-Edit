@@ -39,8 +39,6 @@ def create_train_parquet(config: dict, dbm: DatabaseManager):
             "request": edit["request"],
             "file_name": request.get("filename", None),
             "brep_start_path": brep_start_path,
-            "request_video_30fps_720p": request["30_720"],
-            "request_transcript": json.dumps(request.get("transcript", None)),
             "request_events": json.dumps(request["events"]),
             "request_text": request.get("text", None),
             "edit_events": json.dumps(edit["events"]),
@@ -98,8 +96,6 @@ def create_val_tasks_parquet(config: dict, dbm: DatabaseManager, request_type=No
             "request_type": request["request_type"],
             "file_name": request.get("filename", None),
             "brep_start_path": brep_start_path if brep_start_path else None,
-            "request_video_30fps_720p_audio": request.get("30_720_audio", None),
-            "request_transcript": json.dumps(request.get("transcript", None)),
             "request_events": json.dumps(request["events"]),
             "request_text": request_text,
             "views": dbm.get_brep_images(brep_start_id, format=["png", "jpg"], views=views) if brep_start_id else None,
@@ -153,7 +149,7 @@ def create_val_tasks_parquet(config: dict, dbm: DatabaseManager, request_type=No
         return
     
 
-    extensions = [".f3d", ".step", ".jpg", ".png", ".mp4"]
+    extensions = [".f3d", ".step", ".jpg", ".png"]
     for row in rows:
         for key, value in row.items():
             # if a value is a filepath, append the filepath to the out_dir, and copy the file to that location
