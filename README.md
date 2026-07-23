@@ -7,7 +7,8 @@ This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, b
 
 
 We provide:
-- [The problem statement PDF](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
+- [The problem statement PDF.](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
+- [The introductory presentation.]()
 - A dataset of 48 text-based editing requests and associated edits.
 - Code for accessing the data.
 - Notebooks for visualising and analysing the data.
@@ -29,10 +30,8 @@ Instructions are provided below, but please get in touch if you have any questio
 >  
 > **Use the data linked below for this competition, do _not_ use previous versions of the dataset.**
 
-1. Download the pre-computed database to a desired local location. It's currently stored here: ```onedrive link pending```
-2. Make sure to set `storage_dir` in `src/config/edit_192_external.json` to where the data has been saved.
-3. You're good to go - try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
-
+1. Download and extract the pre-computed database zip into `data/edit_192_external` (or another location and update `storage_dir` in `src/config/edit_192_external.json`). The slimmed hackathon dataset contains 48 text-conditioned edit requests with paper-matching DINO features, human GT edits, and foundation-model baselines.
+2. Try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
 ### Repo structure
 
 - `src/config` - config jsons
@@ -41,7 +40,7 @@ Instructions are provided below, but please get in touch if you have any questio
 - `src/scripts` - for running stages of the evaluation pipeline
 - `src/scripts/benchmark_inference` - scripts to run a foundation model in a harness
 - `src/scripts_grundtruth` - used to export/ingest for human labelling on AWS groundtruth
-- `src/scripts_preprocess` - fusion plugin for preprocessing data/generating tasks
+- `src/scripts_preprocess` - cadquery_convert.py for headless STEP to STL/PNG export
 - `src/utils` - contains database, feature extraction, vlm rating etc.
 - `src/vlms` - a base VLM class with provider specific files which inherit
 
@@ -50,7 +49,7 @@ Instructions are provided below, but please get in touch if you have any questio
 - You can either modify ours (see the cadquery harness in `src/vlms/base_vlm.py`, `src/harnesses/cadquery_script.py` and `src/scripts_benchmark_inference/run_harness.py` ). You can update model settings in the config, and an example of how to run is in `src/scripts/run_all.sh`
 - Or you can write your own.
 - Either way, you must produce a .step file and a settings.json with the appropriate data in. You can see what we do in `src/scripts_benchmark_inference/run_harness.py`
-- You must also provide a single topright isometric view, and 6 orthographic views (top, bottom, front, back, left, right), and ensure they are in the correct file structure to be ingested. Additionally, some metrics require .stls. We provide two ways to export these in bulk from .steps if the harness does not natively output these files: `src/scripts_preprocess/fusion_convert` if you have Fusion, or `src/scripts_preprocess/cadquery_convert.py` if you'd rather do it headless.
+- You must also provide a single topright isometric view, and 6 orthographic views (top, bottom, front, back, left, right), and ensure they are in the correct file structure to be ingested. Additionally, some metrics require .stls. If the harness does not natively output these files, use `src/scripts_preprocess/cadquery_convert.py` to export them headless from `.step` files.
 - An single example model output ready to be ingested is in `example_data`. As long as your model output matches this file/folder structure, it will be OK.
 - Add your output path to `models_dir` in the config.
 - Ingest and run the evaluation in `src/scripts/run_all.sh`
@@ -62,9 +61,9 @@ Instructions are provided below, but please get in touch if you have any questio
 The dataset/benchmark is organised in a local mongita database with the following schemas
 
 - requests: contains all information about the request (text instruction, etc).
-- edits: contains all the information about an edit (screengrabs, fusion actions etc.)
-- users: humans/ML models who have created requests, edits, or evaluations/rankings
-- breps: contains all the information about a brep: .f3d .smt .stl, iso and 6-orthographic images, dino v2 features etc.
+- edits: contains all the information about an edit (screengrabs, edit events, etc.)
+- users: humans/ML models who have created requests, edits, or evaluations
+- breps: contains all the information about a brep: .step, .stl, iso and 6-orthographic images, dino v2 features etc.
 - ratings: ratings performed on an edit by a user
 
 All objects (e.g. step files) live outside the database in the file tree, and are pointed to by their relative filepaths from the database. See `src/notebooks/visualise_examples.ipynb` for example access patterns.
