@@ -23,7 +23,7 @@ task_instructions = {
 def add_root_dir_to_files(task_dict, root_dir):
     import numpy as np
     
-    extensions = ("png", "jpg", "jpeg", "f3d", "step", "smt", "stp", "stl")
+    extensions = ("png", "jpg", "jpeg", "step", "stp", "stl")
     
     def process_item(item):
         if isinstance(item, str) and item.endswith(extensions):
@@ -46,7 +46,7 @@ def format_task_dict(task_dict):
             view_name = osp.splitext(osp.basename(view))[0].split("_")[-1]
             task_dict[f"view_{view_name}"] = view
 
-    # process brep_start_path to create separate keys for each extension - usually f3d and step
+    # process brep_start_path to create separate keys for each extension - usually step
     orig_brep_start = task_dict.pop("brep_start_path", [])
     if orig_brep_start:
         # Flatten nested lists (from converted numpy arrays)

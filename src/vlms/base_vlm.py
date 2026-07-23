@@ -279,7 +279,7 @@ class BaseVLM(ABC):
 
         if "events" in self.config["fields"]:
             message_list.extend([
-                f"Autodesk Fusion events: {events}",
+                f"Edit events: {events}",
             ])
 
         if "frame_event_interleaved" in self.config["fields"]:

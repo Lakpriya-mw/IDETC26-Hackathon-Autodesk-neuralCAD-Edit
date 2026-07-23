@@ -6,7 +6,7 @@ Processes STEP files recursively, exporting to multiple formats:
 STL and PNG previews from multiple camera angles.
 Skips files that already have all output formats.
 
-This script uses CadQuery (open-source) instead of Fusion 360.
+This script uses CadQuery for headless STEP export.
 """
 
 import sys
