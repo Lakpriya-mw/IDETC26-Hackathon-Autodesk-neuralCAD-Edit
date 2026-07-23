@@ -5,6 +5,7 @@ import random
 import subprocess
 import json
 import shutil
+import sys
 
 class GenerateResponseResult:
     def __init__(self, response_json=None, response_text=None, token_counts=None, thinking_text=None):
@@ -474,7 +475,7 @@ class BaseVLM(ABC):
             f.write(script)
 
         cmd = [
-            "python",
+            sys.executable,
             harness_script_file,
             "--output_dir",
             output_dir,
@@ -496,7 +497,7 @@ class BaseVLM(ABC):
             else:
                 result.stdout = result.stdout.replace(line + "\n", "")
 
-        return f"stdout: {result.stdout}"
+        return f"stdout: {result.stdout}\nstderr: {result.stderr}"
     
     def cadquery_script(self, instruction_text, task_info_dict, harness_script_file, output_dir, max_iters=10):
         conversation_instruction = """

@@ -55,6 +55,18 @@ def load_image_from_path(image_path: str):
     image = Image.open(image_path)
     return image
 
+
+def _clip_feature_tensor(output):
+    """Return a feature tensor from CLIP model output across transformers versions."""
+    if torch.is_tensor(output):
+        return output
+    if hasattr(output, "pooler_output") and output.pooler_output is not None:
+        return output.pooler_output
+    if hasattr(output, "last_hidden_state") and output.last_hidden_state is not None:
+        return output.last_hidden_state[:, 0, :]
+    raise TypeError(f"Unsupported CLIP feature output type: {type(output)}")
+
+
 def extract_clip_visual(db: DatabaseManager, config: dict, feature_info: list[dict]) -> None:
     
     print("\nExtracting CLIP visual features for breps...")
@@ -90,7 +102,7 @@ def extract_clip_visual(db: DatabaseManager, config: dict, feature_info: list[di
         inputs = clip_processor(images=images, return_tensors="pt", padding=True).to(device)
 
         with torch.no_grad():
-            image_features = clip_model.get_image_features(**inputs)
+            image_features = _clip_feature_tensor(clip_model.get_image_features(**inputs))
             # Normalize the features
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
             features_np = image_features.cpu().numpy()
@@ -128,7 +140,7 @@ def extract_clip_text(db: DatabaseManager, config: dict, feature_text: list[dict
     inputs = clip_processor(text=texts, return_tensors="pt", padding=True).to(device)
 
     with torch.no_grad():
-        text_features = clip_model.get_text_features(**inputs)
+        text_features = _clip_feature_tensor(clip_model.get_text_features(**inputs))
         # Normalize the features
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         features_np = text_features.cpu().numpy()

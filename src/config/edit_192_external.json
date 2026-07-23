@@ -94,7 +94,7 @@
             "rating_function": "run_rating_images"
         },
         "claude-sonnet-4.5_edit-rating-6-img":{
-            "skip": false,
+            "skip": true,
             "family": "anthropic",
             "model": "claude-sonnet-4-5",
             "thinking": {

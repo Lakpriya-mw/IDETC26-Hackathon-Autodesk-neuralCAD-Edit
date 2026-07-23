@@ -1,9 +1,10 @@
 """
 Cross-platform offscreen rendering and export for CadQuery/OCP shapes.
 
-Rendering uses OCP's V3d offscreen viewer.
+Rendering uses OCP's V3d offscreen viewer on Linux and macOS.
 Requires Xvfb on headless Linux (xvfb-run python ...).
 Uses Cocoa_Window on macOS.
+Uses CadQuery's VTK-based vis.show on Windows.
 """
 
 import os
@@ -24,6 +25,28 @@ VIEW_PROJECTIONS = {
 }
 
 
+def _render_to_png_vtk(occ_shape, png_path, proj=(1, -1, 1), width=1024, height=1024):
+    """Render using CadQuery's VTK-based vis.show (Windows)."""
+    from cadquery.vis import show
+
+    wrapped = occ_shape.wrapped if hasattr(occ_shape, "wrapped") else occ_shape
+    distance = 10.0
+    position = tuple(float(component) * distance for component in proj)
+
+    show(
+        wrapped,
+        screenshot=str(png_path),
+        interact=False,
+        width=width,
+        height=height,
+        position=position,
+        focus=(0.0, 0.0, 0.0),
+        trihedron=False,
+        gradient=False,
+        bgcolor=(1.0, 1.0, 1.0),
+    )
+
+
 def render_to_png(occ_shape, png_path, proj=(1, -1, 1), width=1024, height=1024):
     """Render an OCP shape to a PNG file from a given projection direction.
 
@@ -34,6 +57,10 @@ def render_to_png(occ_shape, png_path, proj=(1, -1, 1), width=1024, height=1024)
         width: Image width in pixels.
         height: Image height in pixels.
     """
+    if sys.platform == "win32":
+        _render_to_png_vtk(occ_shape, png_path, proj=proj, width=width, height=height)
+        return
+
     from OCP.AIS import AIS_InteractiveContext, AIS_Shape, AIS_Shaded
     from OCP.Aspect import Aspect_DisplayConnection, Aspect_TypeOfLine
     from OCP.OpenGl import OpenGl_GraphicDriver

@@ -21,7 +21,19 @@ Instructions are provided below, but please get in touch if you have any questio
 ### Setup
 
 1. Clone this repo
-2. `conda env create -f environment.yml`
+2. Install dependencies (recommended, cross-platform):
+
+```bash
+uv sync
+```
+
+Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
+
+**Conda fallback** (macOS/Linux): `conda env create -f environment.yml`
+
+**Config notes:**
+- Set `models_dir.paths` in `src/config/edit_192_external.json` to your harness output directory before ingesting model results.
+- The database uses the `breps` collection by default (`breps_collection` in config). Do not set it to `breps_v2` unless your data uses that collection.
 
 ### Download and visualise data
 
@@ -31,7 +43,8 @@ Instructions are provided below, but please get in touch if you have any questio
 > **Use the data linked below for this competition, do _not_ use previous versions of the dataset.**
 
 1. Download and extract the pre-computed database zip into `data/edit_192_external` (or another location and update `storage_dir` in `src/config/edit_192_external.json`). The slimmed hackathon dataset contains 48 text-conditioned edit requests with paper-matching DINO features, human GT edits, and foundation-model baselines.
-2. Try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
+2. To keep only text-conditioned requests in the database, run `uv run python src/scripts/filter_dataset_text_only.py --config src/config/edit_192_external.json`.
+3. Try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
 ### Repo structure
 
 - `src/config` - config jsons
@@ -46,13 +59,13 @@ Instructions are provided below, but please get in touch if you have any questio
 
 ### Running your own foundation model/harness
 
-- You can either modify ours (see the cadquery harness in `src/vlms/base_vlm.py`, `src/harnesses/cadquery_script.py` and `src/scripts_benchmark_inference/run_harness.py` ). You can update model settings in the config, and an example of how to run is in `src/scripts/run_all.sh`
+- You can either modify ours (see the cadquery harness in `src/vlms/base_vlm.py`, `src/harnesses/cadquery_script.py` and `src/scripts_benchmark_inference/run_harness.py` ). You can update model settings in the config, and an example of how to run is in `src/scripts/run_all.sh` (macOS/Linux) or `src/scripts/run_all.ps1` (Windows).
 - Or you can write your own.
 - Either way, you must produce a .step file and a settings.json with the appropriate data in. You can see what we do in `src/scripts_benchmark_inference/run_harness.py`
 - You must also provide a single topright isometric view, and 6 orthographic views (top, bottom, front, back, left, right), and ensure they are in the correct file structure to be ingested. Additionally, some metrics require .stls. If the harness does not natively output these files, use `src/scripts_preprocess/cadquery_convert.py` to export them headless from `.step` files.
 - An single example model output ready to be ingested is in `example_data`. As long as your model output matches this file/folder structure, it will be OK.
 - Add your output path to `models_dir` in the config.
-- Ingest and run the evaluation in `src/scripts/run_all.sh`
+- Ingest and run the evaluation in `src/scripts/run_all.sh` (macOS/Linux) or `src/scripts/run_all.ps1` (Windows)
 - You can then use `src/notebooks/leaderboard.ipynb` to display the results.
 - Note that these give you the automatic metrics only. We'll gladly run the human evals for you.
 

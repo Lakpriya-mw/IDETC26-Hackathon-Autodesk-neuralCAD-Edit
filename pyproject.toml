@@ -1,0 +1,35 @@
+[project]
+name = "neuralcad-edit"
+version = "0.1.0"
+description = "Autodesk neuralCAD-Edit hackathon benchmark"
+requires-python = "==3.12.*"
+dependencies = [
+    "itables",
+    "pandas",
+    "mongita",
+    "cadquery",
+    "pyarrow",
+    "ray",
+    "openai",
+    "anthropic",
+    "google-genai",
+    "json-repair",
+    "scikit-learn",
+    "open3d",
+    "torch",
+    "transformers",
+    "pillow",
+    "probreg",
+    "scipy",
+    "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
+]
+
+[project.optional-dependencies]
+vllm = ["vllm; sys_platform == 'linux'"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

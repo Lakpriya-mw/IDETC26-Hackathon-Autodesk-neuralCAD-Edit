@@ -275,13 +275,13 @@ def main():
         
         if success:
             processed_count += 1
-            print("  ✓ Successfully processed")
+            print("  OK Successfully processed")
         elif skipped:
             skipped_count += 1
-            print("  ⊘ Skipped (all outputs exist)")
+            print("  SKIP Skipped (all outputs exist)")
         else:
             errors.append((cad_file.name, error))
-            print(f"  ✗ Error: {error}")
+            print(f"  ERR Error: {error}")
     
     # Print summary
     print("\n" + "="*80)
@@ -295,7 +295,7 @@ def main():
     if errors:
         print("\nErrors encountered:")
         for filename, error in errors[:10]:  # Show first 10 errors
-            print(f"  • {filename}: {error}")
+            print(f"  - {filename}: {error}")
         if len(errors) > 10:
             print(f"  ... and {len(errors) - 10} more")
     

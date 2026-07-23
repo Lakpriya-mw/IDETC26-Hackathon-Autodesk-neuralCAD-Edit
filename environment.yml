@@ -9,9 +9,7 @@ dependencies:
     - itables
     - pandas
     - mongita
-    - vllm
     - cadquery
-    - pandas
     - pyarrow
     - ray
     - openai
@@ -20,4 +18,9 @@ dependencies:
     - json-repair
     - scikit-learn
     - open3d
+    - torch
+    - transformers
+    - pillow
+    - probreg
+    - scipy
     - pyobjc-framework-Cocoa; sys_platform == 'darwin'
