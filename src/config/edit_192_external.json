@@ -24,7 +24,6 @@
         ]
     },
     "db_name": "v2_db",
-    "breps_collection": "breps_v2",
     "dino_model": "facebook/dinov2-base",
     "dino_device": "cpu",
     "dino_batch_size": 16,

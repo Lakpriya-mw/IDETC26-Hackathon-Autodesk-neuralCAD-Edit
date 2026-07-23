@@ -17,7 +17,7 @@ def main():
     else:
         print(f"Database already has {text_count} text-only requests; skipping DB prune.")
 
-    dbm.rebuild_breps_collection()
+    dbm.compact_breps_to_referenced()
     dbm.cleanup_orphan_files()
     dbm.print_db_schema_counts()
     dbm.close_connection()
