@@ -32,8 +32,6 @@ class DatabaseManager:
         self.requests = self.db['requests']
         self.edits = self.db['edits']
         self.ratings = self.db['ratings']
-        self.rankings = self.db['rankings']
-        self.cots = self.db['cots']
 
         self.make_dirs()
 
@@ -56,10 +54,6 @@ class DatabaseManager:
         os.makedirs(osp.join(self.root_dir, self.model_edit_dir), exist_ok=True)
         self.model_rate_dir = "model_ratings"
         os.makedirs(osp.join(self.root_dir, self.model_rate_dir), exist_ok=True)
-        self.model_rank_dir = "model_rankings"
-        os.makedirs(osp.join(self.root_dir, self.model_rank_dir), exist_ok=True)
-        self.model_cot_dir = "model_cots"
-        os.makedirs(osp.join(self.root_dir, self.model_cot_dir), exist_ok=True)        
 
 
     # USERS
@@ -107,7 +101,7 @@ class DatabaseManager:
         # check if path exists
         if os.path.exists(orig_path):
 
-            extensions = ['stp', 'obj', 'png', 'jpg', 'f3d', 'stl', 'step', 'smt']
+            extensions = ['stp', 'obj', 'png', 'jpg', 'stl', 'step']
 
             # check if orig_path is a directory
             if os.path.isdir(orig_path):
@@ -258,39 +252,71 @@ class DatabaseManager:
         else:
             print("Rating already exists!")
 
-    # RANKINGS
-    def ranking_exists(self, user, request):
-        return self.rankings.count_documents({"user": user, "request": request}) > 0
-
-    def insert_ranking(self, user, request, ranked_edits):
-        if not self.ranking_exists(user, request):
-            id = self.rankings.insert_one({
-                "user": user,
-                "request": request,
-                "ranked_edits": ranked_edits
-            })
-            print("Ranking inserted successfully!")
-            return id.inserted_id
-        else:
-            print("Ranking already exists!")
-
-    # COTs
-    def cot_exists(self, user, edit):
-        return self.cots.count_documents({"user": user, "edit": edit}) > 0
-    
-    def insert_cot(self, user, edit, cot):
-        if not self.cot_exists(user, edit):
-            id = self.cots.insert_one({
-                "user": user,
-                "edit": edit,
-                "cot": cot
-            })
-            print("COT inserted successfully!")
-            return id.inserted_id
-        else:
-            print("COT already exists!")
-
     # OTHER UTILS - CLEANING, PRINTING etc.
+    def _referenced_brep_ids(self):
+        needed_ids = set()
+        for request in self.requests.find():
+            if request.get("brep_start"):
+                needed_ids.add(request["brep_start"])
+        for edit in self.edits.find():
+            if edit.get("brep_end"):
+                needed_ids.add(edit["brep_end"])
+        return needed_ids
+
+    def compact_breps_to_referenced(self):
+        """Keep only brep documents referenced by requests/edits (preserves feature fields)."""
+        needed_ids = self._referenced_brep_ids()
+        kept_docs = []
+        missing = []
+        for brep_id in sorted(needed_ids):
+            doc = self.breps.find_one({"_id": brep_id})
+            if doc:
+                kept_docs.append(doc)
+            else:
+                missing.append(brep_id)
+        if missing:
+            print(f"Warning: {len(missing)} referenced breps missing from collection")
+        mongita_path = osp.join(self.root_dir, "mongita_db")
+        breps_path = osp.join(mongita_path, "v2_db.breps")
+        self.close_connection()
+        if osp.isdir(breps_path):
+            shutil.rmtree(breps_path)
+            print(f"Removed breps collection directory for compaction: {breps_path}")
+        db_path = osp.join(self.root_dir, "mongita_db")
+        self.client = MongoClient(host=db_path)
+        self.db = self.client[self.config["db_name"]]
+        self.users = self.db['users']
+        breps_collection = self.config.get("breps_collection", "breps")
+        self.breps = self.db[breps_collection]
+        self.requests = self.db['requests']
+        self.edits = self.db['edits']
+        self.ratings = self.db['ratings']
+        for doc in kept_docs:
+            self.breps.insert_one(doc)
+        print(f"Compacted breps collection to {len(kept_docs)} referenced documents")
+        return len(kept_docs)
+
+    def drop_legacy_collection(self, collection_name):
+        """Drop a mongita collection by name if it exists."""
+        if collection_name not in self.db.list_collection_names():
+            print(f"Collection {collection_name} not found; skipping drop.")
+            return
+        self.db.drop_collection(collection_name)
+        print(f"Dropped collection: {collection_name}")
+
+    def remove_brep_extension_files(self, extension):
+        """Delete on-disk files for an extension without rewriting brep documents."""
+        removed_files = 0
+        brep_dir = osp.join(self.root_dir, self.brep_dir)
+        if osp.isdir(brep_dir):
+            for fname in os.listdir(brep_dir):
+                if fname.endswith(f".{extension}"):
+                    abs_path = osp.join(brep_dir, fname)
+                    if osp.isfile(abs_path):
+                        os.remove(abs_path)
+                        removed_files += 1
+        print(f"Deleted {removed_files} .{extension} files from breps/")
+
     def get_latest_edit_ids(self, request_id_list):
         latest_edit_dict = {}
         for edit in self.db.edits.find({"request": {"$in": request_id_list}}):
@@ -390,16 +416,6 @@ class DatabaseManager:
             edit = self.edits.find_one({"_id": rating["edit"]})
             if not edit:
                 print(f"Rating {rating['_id']} does not have a corresponding edit.")
-        # check all rankings have a corresponding user
-        for ranking in self.rankings.find():
-            user = self.users.find_one({"_id": ranking["user"]})
-            if not user:
-                print(f"Ranking {ranking['_id']} does not have a corresponding user.")
-        # check all rankings have a corresponding request
-        for ranking in self.rankings.find():
-            request = self.requests.find_one({"_id": ranking["request"]})
-            if not request:
-                print(f"Ranking {ranking['_id']} does not have a corresponding request.")
 
     def prune_to_modalities(self, keep_modalities=None, delete_files=True):
         """
@@ -434,7 +450,6 @@ class DatabaseManager:
                 if edit.get("frames_dir"):
                     deleted_frame_dirs.add(edit["frames_dir"])
                 self.ratings.delete_many({"edit": edit["_id"]})
-                self.cots.delete_many({"edit": edit["_id"]})
 
             request = self.requests.find_one({"_id": request_id})
             if request and request.get("brep_start"):
@@ -443,7 +458,6 @@ class DatabaseManager:
                 deleted_frame_dirs.add(request["frames_dir"])
 
             self.edits.delete_many({"request": request_id})
-            self.rankings.delete_many({"request": request_id})
             self.requests.delete_one({"_id": request_id})
 
         referenced_brep_ids = set()
@@ -484,60 +498,6 @@ class DatabaseManager:
 
         print("After pruning:")
         self.print_db_schema_counts()
-
-    def rebuild_breps_collection(self):
-        """Rebuild the breps collection from on-disk files for referenced brep IDs."""
-        needed_ids = set()
-        brep_users = {}
-        brep_end_times = {}
-
-        for request in self.requests.find():
-            if request.get("brep_start"):
-                needed_ids.add(request["brep_start"])
-                brep_users[request["brep_start"]] = request["user"]
-                brep_end_times[request["brep_start"]] = request.get("end_time")
-        for edit in self.edits.find():
-            if edit.get("brep_end"):
-                needed_ids.add(edit["brep_end"])
-                brep_users[edit["brep_end"]] = edit["user"]
-                brep_end_times[edit["brep_end"]] = edit.get("end_time")
-
-        brep_dir = osp.join(self.root_dir, self.brep_dir)
-        extensions = ["stp", "obj", "png", "jpg", "f3d", "stl", "step", "smt"]
-        rebuilt = 0
-
-        for brep_id in sorted(needed_ids):
-            ext_files = {ext: [] for ext in extensions}
-            if osp.isdir(brep_dir):
-                for fname in os.listdir(brep_dir):
-                    if not fname.startswith(brep_id):
-                        continue
-                    remainder = fname[len(brep_id):]
-                    if remainder and not remainder.startswith((".", "_")):
-                        continue
-                    ext = osp.splitext(fname)[-1][1:]
-                    if ext in ext_files:
-                        ext_files[ext].append(self.strip_root_dir(osp.join(brep_dir, fname)))
-
-            ext_files = {k: v for k, v in ext_files.items() if v}
-            if not ext_files:
-                print(f"Warning: no on-disk files found for brep {brep_id}")
-                continue
-
-            brep_doc = {
-                "_id": brep_id,
-                "user": brep_users.get(brep_id, ""),
-                "orig-path": "",
-                "end_time": brep_end_times.get(brep_id),
-            }
-            brep_doc.update(ext_files)
-            # Delete any existing doc first so the rebuild is idempotent and can
-            # be re-run without raising a DuplicateKeyError.
-            self.breps.delete_one({"_id": brep_id})
-            self.breps.insert_one(brep_doc)
-            rebuilt += 1
-
-        print(f"Rebuilt {rebuilt} brep documents")
 
     def cleanup_orphan_files(self):
         """Remove videos and brep/frame files not referenced by the current database."""
@@ -588,7 +548,7 @@ class DatabaseManager:
                         print(f"Removed directory: {abs_dir}")
 
     def _delete_brep_files(self, brep):
-        extensions = ["stp", "obj", "png", "jpg", "f3d", "stl", "step", "smt"]
+        extensions = ["stp", "obj", "png", "jpg", "stl", "step"]
         removed = 0
         for ext in extensions:
             if ext not in brep:
