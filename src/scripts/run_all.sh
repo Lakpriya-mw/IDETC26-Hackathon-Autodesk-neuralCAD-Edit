@@ -1,5 +1,5 @@
 CONFIG_FILE=src/config/edit_192_external.json
-PYTHON_PATH=/Users/perrett/Code/edit-eval
+PYTHON_PATH=$(pwd)
 
 # 1. CadQuery harness runs
 # commented out as they're already in the database, but you can modify to do your own runs.
@@ -12,8 +12,8 @@ PYTHON_PATH=/Users/perrett/Code/edit-eval
 # for model in "${MODELS[@]}"; do
 #     echo "Running harness for model: $model"
 #     PYTHONPATH=${PYTHON_PATH} python src/scripts_benchmark_inference/run_harness.py --config ${CONFIG_FILE} \
-#     --input /Users/perrett/fusion_data/edit_database/edit_v2/parquets \
-#     --output_dir /Users/perrett/fusion_data/model_outputs/edit_v2 \
+#     --input /path/to/edit_database/edit_v2/parquets \
+#     --output_dir /path/to/model_outputs/edit_v2 \
 #     --harness src/harnesses/cadquery_script.py \
 #     --userId "$model" \
 #     --required-extensions step

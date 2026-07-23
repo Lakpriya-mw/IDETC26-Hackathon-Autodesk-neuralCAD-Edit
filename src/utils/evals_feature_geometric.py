@@ -538,12 +538,12 @@ if __name__ == "__main__":
     # create dummy db object with just a root_dir field
     dmb = type('db', (object,), {})()
 
-    dmb.root_dir = "/Users/perrett/fusion_data/edit_database/vtest/"
+    dmb.root_dir = "/path/to/edit_database/vtest/"
     gt = "breps/sketch2brep_requester_4512737050977123573.stl"
     human = "breps/dummy_5512737050977123574.stl"
     print(iou(gt, human, dmb, pre_align=True, voxel_divisor=100))
 
-    # dmb.root_dir = "/Users/perrett/fusion_data/edit_database/v1/"
+    # dmb.root_dir = "/path/to/edit_database/v1/"
     # gt = "breps/3YH2WFSRM22W7DKT_1752836805.728848.stl"
     # human = "breps/3YH2WFSRM22W7DKT_1752836805.728848.stl"
     # print(chamfer_similarity(gt, human, dmb, pre_align=False))
