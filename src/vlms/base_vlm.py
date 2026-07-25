@@ -421,7 +421,7 @@ class BaseVLM(ABC):
             os.makedirs(iteration_dir, exist_ok=True)
             iteration_text_file = os.path.join(iteration_dir, f"{iter_count}_response.txt")
 
-            with open(iteration_text_file, 'w') as f:
+            with open(iteration_text_file, 'w', encoding='utf-8') as f:
                 f.write("Thinking text:\n")
                 f.write(whole_response.thinking_text)
                 f.write("\n\n")
