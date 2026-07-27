@@ -5,6 +5,7 @@ from src.utils.db import DatabaseManager
 
 from src.utils.evals_vlm_rate import vlm_rate_eval
 from src.utils.evals_feature_geometric import run_feature_gt_similarity_eval, pair_cosine_similarity, chamfer_similarity, iou
+from src.utils.evals_diff import diff_f1
 from src.utils.visualise_results import display_rating_results
 from src.utils.extract_features import extract_dino, extract_clip_visual
 
@@ -53,6 +54,7 @@ def run_benchmark_evals(db: DatabaseManager, config: dict, benchmark_type=None) 
     run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="feature_dino", description="dino similarity", distance_func=pair_cosine_similarity, request_type="edit")
     run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="chamfer similarity", distance_func=chamfer_similarity, request_type="edit")
     run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="iou", distance_func=iou, request_type="edit")
+    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="diff f1", distance_func=diff_f1, request_type="edit")
 
     # run vlm evals
     vlm_rate_eval(config=config, db=db, edit_id_list=edit_id_list)
