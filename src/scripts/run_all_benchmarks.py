@@ -94,5 +94,11 @@ def main():
     faceted_bar_plot(config=config, results=all_results)
     cost_barplot(config=config, dbm=dbm)
 
+    out_dir = osp.join(config["storage_dir"]["path"], "results")
+    print("Benchmark plots written to:")
+    print(f"  {osp.join(out_dir, 'metric_bar_facets.png')}")
+    print(f"  {osp.join(out_dir, 'cost_barplot.png')}")
+    print(f"  {osp.join(out_dir, 'all_results.json')}")
+
 if __name__ == "__main__":
     main()

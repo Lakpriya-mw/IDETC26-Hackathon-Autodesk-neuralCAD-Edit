@@ -61,7 +61,7 @@ def run_benchmark_evals(db: DatabaseManager, config: dict, benchmark_type=None) 
 
     rating_results = {}
     for difficulty in ["easy", "medium", "hard"]:
-        rating_results[f"edit_{difficulty}"] = display_rating_results(config=config, dbm=db, difficulty=difficulty, request_type="edit", request_fields=request_fields, save_plot=False)
+        rating_results[f"edit_{difficulty}"] = display_rating_results(config=config, dbm=db, difficulty=difficulty, request_type="edit", request_fields=request_fields)
     ranking_results = {}
 
     # merge and return results
