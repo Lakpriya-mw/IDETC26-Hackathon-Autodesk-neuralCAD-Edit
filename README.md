@@ -1,12 +1,13 @@
 # IDETC 2026 Hackathon
+
 # Autodesk neuralCAD-Edit Problem
 
 This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, based on the 3D CAD editing dataset and benchmark introduced in the paper: [neuralCAD-Edit: An Expert Benchmark for Multimodal-Instructed 3D CAD Model Editing](https://autodeskailab.github.io/neuralCAD-Edit/)
 
-![fig_01](img/fig_1.png)
-
+fig_01
 
 We provide:
+
 - [The problem statement PDF.](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
 - [The introductory presentation.]()
 - A dataset of 48 text-based editing requests and associated edits.
@@ -32,19 +33,25 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 **Conda fallback** (macOS/Linux): `conda env create -f environment.yml`
 
 **Config notes:**
+
 - Set `models_dir.paths` in `src/config/edit_192_external.json` to your harness output directory before ingesting model results.
 - The database uses the `breps` collection by default (`breps_collection` in config). Do not set it to `breps_v2` unless your data uses that collection.
+
+
 
 ### Download and visualise data
 
 > **⚠️ Important:**  
 > This hackathon problem uses data that is **significantly different** from the original dataset.  
->  
-> **Use the data linked below for this competition, do _not_ use previous versions of the dataset.**
+>
+> **Use the data linked below for this competition, do *not* use previous versions of the dataset.**
 
 1. Download and extract the pre-computed database zip into `data/edit_192_external` (or another location and update `storage_dir` in `src/config/edit_192_external.json`). The slimmed hackathon dataset contains 48 text-conditioned edit requests with paper-matching DINO features, human GT edits, and foundation-model baselines.
 2. To keep only text-conditioned requests in the database, run `uv run python src/scripts/filter_dataset_text_only.py --config src/config/edit_192_external.json`.
 3. Try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
+
+
+
 ### Repo structure
 
 - `src/config` - config jsons
@@ -56,6 +63,8 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 - `src/scripts_preprocess` - cadquery_convert.py for headless STEP to STL/PNG export
 - `src/utils` - contains database, feature extraction, vlm rating etc.
 - `src/vlms` - a base VLM class with provider specific files which inherit
+
+
 
 ### Running your own foundation model/harness
 
@@ -69,6 +78,8 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 - You can then use `src/notebooks/leaderboard.ipynb` to display the results.
 - Note that these give you the automatic metrics only. We'll gladly run the human evals for you.
 
+
+
 ### Database Schema
 
 The dataset/benchmark is organised in a local mongita database with the following schemas
@@ -81,7 +92,7 @@ The dataset/benchmark is organised in a local mongita database with the followin
 
 All objects (e.g. step files) live outside the database in the file tree, and are pointed to by their relative filepaths from the database. See `src/notebooks/visualise_examples.ipynb` for example access patterns.
 
-![Database Schema](img/database_schema.svg)
+Database Schema
 
 ### Citation
 
@@ -93,3 +104,4 @@ All objects (e.g. step files) live outside the database in the file tree, and ar
   year={2026}
 }
 ```
+

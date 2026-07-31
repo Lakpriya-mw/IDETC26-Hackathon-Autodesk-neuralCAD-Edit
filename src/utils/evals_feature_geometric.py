@@ -191,6 +191,44 @@ def chamfer_similarity(source_brep, target_brep, db, pre_align=False):
     return 1.0 / (chamfer_dist + 1e-8)  # Avoid division by zero
 
 
+def chamfer_similarity_norm(source_brep, target_brep, db, pre_align=False):
+    """
+    Computes a normalized Chamfer similarity between two BREP objects.
+
+    The raw Chamfer distance is divided by the ground truth bounding box diagonal
+    to produce a scale-invariant distance in [0, 1], then converted to similarity
+    as 1 - normalized_distance.
+
+    Args:
+        source_brep (str): Path to the ground truth BREP STL file.
+        target_brep (str): Path to the predicted BREP STL file.
+        db (DatabaseManager): Database manager instance (provides root_dir).
+        pre_align (bool): Whether to align the prediction to the GT before computing.
+
+    Returns:
+        float: Normalized similarity in [0, 1]. 1.0 = perfect match, 0.0 = worst.
+    """
+    if isinstance(source_brep, list):
+        source_brep = source_brep[0]
+    if isinstance(target_brep, list):
+        target_brep = target_brep[0]
+
+    pts_gt = load_stl_as_point_cloud(osp.join(db.root_dir, source_brep))
+    pts_pred = load_stl_as_point_cloud(osp.join(db.root_dir, target_brep))
+
+    if pts_gt.shape[0] == 0 or pts_pred.shape[0] == 0:
+        return 0.0
+
+    gt_bbox_diag = np.linalg.norm(pts_gt.max(axis=0) - pts_gt.min(axis=0))
+    if gt_bbox_diag < 1e-8:
+        return 0.0
+
+    if pre_align:
+        pts_pred = align_point_clouds(pts_pred, pts_gt)
+
+    raw_dist = compute_chamfer_distance(pts_gt, pts_pred, normalize=False)[0]
+    norm_dist = min(raw_dist / gt_bbox_diag, 1.0)
+    return 1.0 - norm_dist
 
 
 def align_meshes(mesh_source, mesh_target, num_points=1000, num_initializations=8):
@@ -392,7 +430,7 @@ def iou(source_brep, target_brep, db, voxel_divisor=100, pre_align=False, timeou
 #     return float(intersection) / float(union) if union > 0 else 0.0
 
 
-def run_feature_gt_similarity_eval(config: dict, dbm: DatabaseManager, feature_key: str = "feature_dino", description: str = "dino similarity", distance_func=pair_cosine_similarity, request_type: str = "edit", distance_func_kwargs=None):
+def run_feature_gt_similarity_eval(config: dict, dbm: DatabaseManager, feature_key: str = "feature_dino", description: str = "dino similarity", distance_func=pair_cosine_similarity, request_type: str = "edit", distance_func_kwargs=None, force=False):
     all_requests_iterator = dbm.requests.find({"request_type": request_type})
 
     for request in all_requests_iterator:
@@ -447,7 +485,7 @@ def run_feature_gt_similarity_eval(config: dict, dbm: DatabaseManager, feature_k
             if dbm.rating_exists("similarity_eval", edit["_id"]):
                 rating = dbm.ratings.find_one({"edit": edit["_id"], "user": "similarity_eval"})
                 rating_id = rating["_id"]
-                if gt_sim_str in rating and start_sim_str in rating:
+                if not force and gt_sim_str in rating and start_sim_str in rating:
                     print(f"Skipping edit {edit['_id']} because ratings already exist")
                     continue
             else:

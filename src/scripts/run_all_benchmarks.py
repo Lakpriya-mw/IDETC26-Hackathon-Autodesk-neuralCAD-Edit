@@ -5,7 +5,7 @@ from src.utils.args import parse_args
 from src.utils.process_config import load_config
 from src.utils.db import DatabaseManager
 from importlib import import_module
-from src.utils.visualise_results import all_tasks_radar_plot
+from src.utils.visualise_results import faceted_bar_plot, cost_barplot
 
 def main():
     # Parse command-line arguments
@@ -90,8 +90,9 @@ def main():
     with open(osp.join(out_dir, "all_results.json"), "w") as f:
         json.dump(all_results, f, indent=4)
 
-    # Visualize results
-    all_tasks_radar_plot(config=config, dbm=dbm, results=all_results)
+    # Visualize results: faceted bar chart (one facet per metric) + cost bar plot
+    faceted_bar_plot(config=config, results=all_results)
+    cost_barplot(config=config, dbm=dbm)
 
 if __name__ == "__main__":
     main()

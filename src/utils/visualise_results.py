@@ -25,36 +25,16 @@ def parse_rating(rating: dict) -> dict:
         dict: A dictionary of metric: score containing the parsed information.
     """
 
-    if all(k in rating["user"] for k in ["gemini", "rating"]):
-    # if "gemini" in rating["user"] and "rating" in rating["user"]:
-        user = rating["user"]
-        return {
-            f"{user}_instruction": (rating["score_instr"] - 1.0) / 6.0,
-            f"{user}_quality": (rating["score_quality"] - 1.0) / 6.0,
-        }
-    
     if rating["user"] == "similarity_eval":
         return_dict = {}
         if "dino similarity gt" in rating:
             return_dict["dino-v2_similarity"] = rating["dino similarity gt"]
-        if "chamfer similarity gt" in rating:
-            return_dict["chamfer_similarity"] = rating["chamfer similarity gt"]
-        if "clip similarity" in rating:
-            return_dict["clip_similarity"] = rating["clip similarity"]
-            return_dict["clip_threshold_pass"] = 1 if rating["clip similarity"] > 0.242 else 0
-        if "iou gt" in rating:
-            return_dict["iou"] = rating["iou gt"]
+        if "chamfer similarity norm gt" in rating:
+            return_dict["chamfer_similarity_norm"] = rating["chamfer similarity norm gt"]
+        if "diff f1 gt" in rating:
+            return_dict["diff_f1"] = rating["diff f1 gt"]
         return return_dict
-    
-    if "private." in rating["user"]:
-        user = rating["user"]
-        print("private user rating found:", rating)
 
-        return {
-            f"{user}_instruction": ((rating["score_instr"] - 1.0) / 6.0 if "score_instr" in rating and rating["score_instr"] is not None else None),
-            f"{user}_quality": ((rating["score_quality"] - 1.0) / 6.0 if "score_quality" in rating and rating["score_quality"] is not None else None),
-        }
-    
     return None
 
 def plot_ratings(config, scores: dict, difficulty: str = "all", request_type: str = "edit", mode="ratings"):
@@ -108,7 +88,7 @@ def plot_ratings(config, scores: dict, difficulty: str = "all", request_type: st
     plt.savefig(out_fn)
     # plt.show()
 
-def display_rating_results(config: dict, dbm: DatabaseManager, difficulty: str = "all", request_fields={"eval_vis_multi": True, "eval_geometric": True}, request_type="edit"):
+def display_rating_results(config: dict, dbm: DatabaseManager, difficulty: str = "all", request_fields={"eval_vis_multi": True, "eval_geometric": True}, request_type="edit", save_plot=True):
 
     request_fields["request_type"] = request_type
 
@@ -206,11 +186,193 @@ def display_rating_results(config: dict, dbm: DatabaseManager, difficulty: str =
                 if request_id not in scores.get(user_id, {}).get(metric, {}):
                     scores[user_id][metric][request_id] = None
 
-    plot_ratings(config, scores, difficulty=difficulty, request_type=request_type, mode="ratings")
+    if save_plot:
+        plot_ratings(config, scores, difficulty=difficulty, request_type=request_type, mode="ratings")
 
     return scores
 
 
+
+
+METRIC_DISPLAY_NAMES = {
+    "chamfer_similarity_norm": "Chamfer similarity (norm)",
+    "diff_f1": "Diff F1",
+    "dino-v2_similarity": "DINOv2 similarity",
+}
+
+# Baseline models from the paper are shown in grey; any other (newly added)
+# model is highlighted in blue.
+BASELINE_MODELS = {
+    "gemini-3-pro_cadquery-script",
+    "gpt-5.2_cadquery-script",
+    "claude-sonnet-4.5_cadquery-script",
+}
+BASELINE_COLOR = "#999999"
+NEW_MODEL_COLOR = "#1f77b4"
+
+# Users that are treated as reference lines rather than bars.
+HUMAN_BASELINE_KEY = "other human"
+HUMAN_BASELINE_LABEL = "human baseline"
+HUMAN_BASELINE_COLOR = "#444444"
+
+
+def _model_color(model, index=0):
+    return BASELINE_COLOR if model in BASELINE_MODELS else NEW_MODEL_COLOR
+
+
+def _bar_models(config, request_type):
+    """Models rendered as bars: config order, excluding humans (gt/baseline)."""
+    return [
+        m for m in config["benchmark_eval_users"][request_type]
+        if m not in ("gt human", HUMAN_BASELINE_KEY)
+    ]
+
+
+def _aggregate_scores_by_metric(results: dict):
+    """Collapse a results dict (task -> model -> metric -> {edit_id: score}) into
+    metric -> model -> list_of_scores, pooling across all tasks/difficulties.
+
+    Missing scores (``None`` placeholders for failed/unrated edits) are counted
+    as 0.0 rather than dropped, so a model is penalized for failed runs. This
+    matches the leaderboard notebook, which averages every edit with a 0.0
+    default for missing metrics.
+    """
+    metric_model_scores = {}
+    for _task, model_data in results.items():
+        for model, metric_data in model_data.items():
+            for metric, score_dict in metric_data.items():
+                if isinstance(score_dict, dict):
+                    values = [(v if v is not None else 0.0) for v in score_dict.values()]
+                elif isinstance(score_dict, list):
+                    values = [(v if v is not None else 0.0) for v in score_dict]
+                else:
+                    values = [score_dict if score_dict is not None else 0.0]
+                metric_model_scores.setdefault(metric, {}).setdefault(model, []).extend(values)
+    return metric_model_scores
+
+
+def faceted_bar_plot(config: dict, results: dict, request_type: str = "edit", metrics=None, save=True):
+    """
+    Bar chart with one facet (subplot) per metric, showing the mean score for
+    every model. Each facet is taller than it is wide. The human baseline is
+    drawn as a dashed reference line rather than a bar. Replaces the previous
+    radar/ratings plots.
+
+    Args:
+        config: config dict (provides benchmark_eval_users and storage_dir).
+        results: task -> model -> metric -> {edit_id: score} results dict.
+        request_type: which benchmark_eval_users list to use for model ordering.
+        metrics: optional explicit metric ordering; defaults to the enabled three.
+    """
+    metric_model_scores = _aggregate_scores_by_metric(results)
+
+    if metrics is None:
+        metrics = [m for m in ["chamfer_similarity_norm", "diff_f1", "dino-v2_similarity"] if m in metric_model_scores]
+        # include any additional metrics that showed up, for robustness
+        metrics += [m for m in metric_model_scores if m not in metrics]
+
+    models = _bar_models(config, request_type)
+    colors = [_model_color(m, i) for i, m in enumerate(models)]
+
+    n = len(metrics)
+    # Portrait facets: each is taller than wide.
+    fig, axes = plt.subplots(1, n, figsize=(3.2 * n, 6.5), squeeze=False)
+    axes = axes[0]
+
+    x = np.arange(len(models))
+    baseline_present = False
+    for ax, metric in zip(axes, metrics):
+        means = []
+        for model in models:
+            values = metric_model_scores.get(metric, {}).get(model, [])
+            means.append(float(np.mean(values)) if values else 0.0)
+        ax.bar(x, means, color=colors)
+
+        # human baseline as a dashed horizontal reference line
+        baseline_values = metric_model_scores.get(metric, {}).get(HUMAN_BASELINE_KEY, [])
+        if baseline_values:
+            baseline_mean = float(np.mean(baseline_values))
+            ax.axhline(baseline_mean, linestyle="--", linewidth=1.5,
+                       color=HUMAN_BASELINE_COLOR, label=HUMAN_BASELINE_LABEL)
+            baseline_present = True
+
+        ax.set_title(METRIC_DISPLAY_NAMES.get(metric, metric), fontsize=10)
+        ax.set_xticks(x)
+        ax.set_xticklabels(models, rotation=45, ha="right", fontsize=8)
+        ax.set_ylabel("Mean score")
+        ax.set_ylim(0, 1)
+        for xi, mean in zip(x, means):
+            ax.text(xi, mean, f"{mean:.2f}", ha="center", va="bottom", fontsize=8)
+
+    if baseline_present:
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="upper right")
+
+    fig.suptitle(f"Metric comparison across models ({request_type})")
+    plt.tight_layout()
+
+    if save:
+        out_dir = osp.join(config["storage_dir"]["path"], "results")
+        os.makedirs(out_dir, exist_ok=True)
+        fig_fn = osp.join(out_dir, "metric_bar_facets.png")
+        plt.savefig(fig_fn, dpi=200, bbox_inches="tight")
+        print(f"Saved faceted bar plot to {fig_fn}")
+
+    return fig, axes
+
+
+def cost_barplot(config: dict, dbm: DatabaseManager, request_type: str = "edit", save=True):
+    """
+    Bar plot of the mean per-edit cost estimate for each model, with error bars
+    (standard deviation across that model's edits). Styling is kept consistent
+    with ``faceted_bar_plot`` (same per-model colours, rotated labels, value
+    labels). Cost is read from each edit's ``token_counts.cost_estimate``.
+
+    Only models present in ``benchmark_eval_users`` that have cost data (i.e.
+    non-human harness runs) are shown.
+    """
+    models = _bar_models(config, request_type)
+
+    model_costs = {}
+    for edit in dbm.edits.find({}):
+        user = edit.get("user")
+        if user not in models:
+            continue
+        token_counts = edit.get("token_counts") or {}
+        cost = token_counts.get("cost_estimate")
+        if cost is None:
+            continue
+        model_costs.setdefault(user, []).append(float(cost))
+
+    ordered_models = [m for m in models if model_costs.get(m)]
+    means = [float(np.mean(model_costs[m])) for m in ordered_models]
+    stds = [float(np.std(model_costs[m])) for m in ordered_models]
+    colors = [_model_color(m, i) for i, m in enumerate(ordered_models)]
+
+    fig, ax = plt.subplots(figsize=(3.2 * max(1, len(ordered_models)), 6.5))
+
+    if ordered_models:
+        x = np.arange(len(ordered_models))
+        ax.bar(x, means, yerr=stds, color=colors, capsize=5)
+        ax.set_xticks(x)
+        ax.set_xticklabels(ordered_models, rotation=45, ha="right", fontsize=8)
+        for xi, mean in zip(x, means):
+            ax.text(xi, mean, f"{mean:.2f}", ha="center", va="bottom", fontsize=8)
+    else:
+        ax.text(0.5, 0.5, "No cost data available", ha="center", va="center", transform=ax.transAxes)
+
+    ax.set_ylabel("Estimated cost per edit ($)")
+    ax.set_title(f"Mean cost per edit ({request_type})", fontsize=10)
+    plt.tight_layout()
+
+    if save:
+        out_dir = osp.join(config["storage_dir"]["path"], "results")
+        os.makedirs(out_dir, exist_ok=True)
+        fig_fn = osp.join(out_dir, "cost_barplot.png")
+        plt.savefig(fig_fn, dpi=200, bbox_inches="tight")
+        print(f"Saved cost bar plot to {fig_fn}")
+
+    return fig, ax
 
 
 def radar_factory(num_vars, frame='circle'):

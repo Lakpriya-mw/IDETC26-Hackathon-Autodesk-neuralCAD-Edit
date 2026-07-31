@@ -3,11 +3,10 @@ from src.utils.process_config import load_config
 import os.path as osp
 from src.utils.db import DatabaseManager
 
-from src.utils.evals_vlm_rate import vlm_rate_eval
-from src.utils.evals_feature_geometric import run_feature_gt_similarity_eval, pair_cosine_similarity, chamfer_similarity, iou
+from src.utils.evals_feature_geometric import run_feature_gt_similarity_eval, pair_cosine_similarity, chamfer_similarity_norm
 from src.utils.evals_diff import diff_f1
 from src.utils.visualise_results import display_rating_results
-from src.utils.extract_features import extract_dino, extract_clip_visual
+from src.utils.extract_features import extract_dino
 
 
 def run_benchmark_evals(db: DatabaseManager, config: dict, benchmark_type=None) -> None:
@@ -48,24 +47,21 @@ def run_benchmark_evals(db: DatabaseManager, config: dict, benchmark_type=None) 
     
     # extract features
     extract_dino(config=config, db=db, feature_info=feature_info)
-    extract_clip_visual(config=config, db=db, feature_info=feature_info)
 
-    # do feature similarity computations
-    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="feature_dino", description="dino similarity", distance_func=pair_cosine_similarity, request_type="edit")
-    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="chamfer similarity", distance_func=chamfer_similarity, request_type="edit")
-    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="iou", distance_func=iou, request_type="edit")
-    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="diff f1", distance_func=diff_f1, request_type="edit")
+    # do feature similarity computations (only the three enabled metrics)
+    # set "recompute_metrics": true in the config to force recomputation of
+    # metrics that already exist (e.g. after changing a metric definition).
+    force = config.get("recompute_metrics", False)
+    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="feature_dino", description="dino similarity", distance_func=pair_cosine_similarity, request_type="edit", force=force)
+    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="chamfer similarity norm", distance_func=chamfer_similarity_norm, request_type="edit", force=force)
+    run_feature_gt_similarity_eval(config=config, dbm=db, feature_key="stl", description="diff f1", distance_func=diff_f1, request_type="edit", force=force)
 
-    # run vlm evals
-    vlm_rate_eval(config=config, db=db, edit_id_list=edit_id_list)
-    # vlm_rank_eval(config=config, db=db, request_id_list=request_id_list)
-
-    # plot results
+    # collect per-difficulty scores (plots are produced by run_all_benchmarks)
     request_fields = config.get("request_fields", {})
 
     rating_results = {}
     for difficulty in ["easy", "medium", "hard"]:
-        rating_results[f"edit_{difficulty}"] = display_rating_results(config=config, dbm=db, difficulty=difficulty, request_type="edit", request_fields=request_fields)
+        rating_results[f"edit_{difficulty}"] = display_rating_results(config=config, dbm=db, difficulty=difficulty, request_type="edit", request_fields=request_fields, save_plot=False)
     ranking_results = {}
 
     # merge and return results
