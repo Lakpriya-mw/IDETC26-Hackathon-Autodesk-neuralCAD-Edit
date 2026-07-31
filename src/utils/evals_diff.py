@@ -8,8 +8,8 @@ relative to the pre-edit (start) model:
     surface_diff_chamfer - chamfer distance between the *surface changes*
 
 All three share the repo-wide metric signature used by
-``src.utils.evals_feature_geometric`` (``efg.iou``, ``efg.chamfer_similarity``,
-``efg.chamfer_similarity_norm`` etc.)::
+``src.utils.evals_feature_geometric`` (``efg.chamfer_similarity_norm``,
+``efg.compute_chamfer_distance``, ``efg.align_meshes`` etc.)::
 
     metric(gt_rel, edit_rel, db, **kwargs) -> float
 

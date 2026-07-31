@@ -38,11 +38,6 @@
             "claude-sonnet-4.5_cadquery-script"
         ]
     },
-    "primary_result_keys": {
-        "edit_easy": "chamfer_similarity",
-        "edit_medium": "chamfer_similarity",
-        "edit_hard": "chamfer_similarity"
-    },
     "benchmark_models":{
         "gemini-3-pro_cadquery-script":{
             "family": "gemini",

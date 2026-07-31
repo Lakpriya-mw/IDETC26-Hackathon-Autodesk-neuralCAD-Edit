@@ -8,7 +8,6 @@ import open3d as o3d
 from scipy.spatial.distance import cdist
 from probreg import cpd
 import copy
-import multiprocessing
 
 
 def load_stl_as_point_cloud(stl_path, num_samples=10000):
@@ -157,40 +156,6 @@ def align_point_clouds(source_pc, target_pc, num_points=1000, num_initialization
     return transformed_points
 
 
-def chamfer_similarity(source_brep, target_brep, db, pre_align=False):
-    """
-    Computes the Chamfer distance between two BREP objects.
-    
-    Args:
-        source_brep (str): Path to the source BREP file.
-        target_brep (str): Path to the target BREP file.
-        db (DatabaseManager): Database manager instance for logging or retrieval.
-        
-    Returns:
-        float: 1 / Chamfer distance between the two BREP objects.
-    """
-
-    # allows for lists of stls etc.
-    if isinstance(source_brep, list):
-        source_brep = source_brep[0]
-    if isinstance(target_brep, list):
-        target_brep = target_brep[0]
-
-    pts1 = load_stl_as_point_cloud(osp.join(db.root_dir, source_brep))
-    pts2 = load_stl_as_point_cloud(osp.join(db.root_dir,target_brep))
-
-    if pts1.shape[0] == 0 or pts2.shape[0] == 0:
-        print(f"Skipping Chamfer similarity for {source_brep} and {target_brep} due to empty point clouds.")
-        return 100.0
-
-    if pre_align:
-        pts2 = align_point_clouds(pts2, pts1)
-
-    chamfer_dist = compute_chamfer_distance(pts1, pts2, normalize=False)[0]
-
-    return 1.0 / (chamfer_dist + 1e-8)  # Avoid division by zero
-
-
 def chamfer_similarity_norm(source_brep, target_brep, db, pre_align=False):
     """
     Computes a normalized Chamfer similarity between two BREP objects.
@@ -279,157 +244,6 @@ def align_meshes(mesh_source, mesh_target, num_points=1000, num_initializations=
     return transformed_mesh
 
 
-def _iou_worker(result_queue, source_brep, target_brep, db_root_dir, voxel_divisor, pre_align):
-    """Worker function for iou that runs in a separate process."""
-    try:
-        db_proxy = type('db', (object,), {'root_dir': db_root_dir})()
-        result = _iou_impl(source_brep, target_brep, db_proxy, voxel_divisor, pre_align)
-        result_queue.put(("ok", result))
-    except Exception as e:
-        result_queue.put(("error", str(e)))
-
-
-def _iou_impl(source_brep, target_brep, db, voxel_divisor=100, pre_align=False):
-    """
-    Actual IoU implementation.
-    """
-    # allows for lists of stls etc.
-    if isinstance(source_brep, list):
-        source_brep = source_brep[0]
-    if isinstance(target_brep, list):
-        target_brep = target_brep[0]
-
-    o3d_source = o3d.io.read_triangle_mesh(osp.join(db.root_dir, source_brep))
-    o3d_target = o3d.io.read_triangle_mesh(osp.join(db.root_dir, target_brep))
-
-    if pre_align:
-        o3d_target = align_meshes(o3d_target, o3d_source)
-
-    bbox_source = o3d_source.get_axis_aligned_bounding_box()
-    bbox_target = o3d_target.get_axis_aligned_bounding_box()
-    diagonal_source = np.linalg.norm(bbox_source.get_max_bound() - bbox_source.get_min_bound())
-    diagonal_target = np.linalg.norm(bbox_target.get_max_bound() - bbox_target.get_min_bound())
-    voxel_size = min(diagonal_source, diagonal_target) / float(voxel_divisor)
-
-    reference_voxel_grid = o3d.geometry.VoxelGrid.create_from_triangle_mesh(o3d_source, voxel_size=voxel_size)
-    aligning_voxel_grid = o3d.geometry.VoxelGrid.create_from_triangle_mesh(o3d_target, voxel_size=voxel_size)
-
-    reference_voxels = set(tuple(voxel.grid_index) for voxel in reference_voxel_grid.get_voxels())
-    aligning_voxels = set(tuple(voxel.grid_index) for voxel in aligning_voxel_grid.get_voxels())
-
-    intersection = len(reference_voxels & aligning_voxels)
-    union = len(reference_voxels | aligning_voxels)
-    return float(intersection) / float(union) if union > 0 else 0.0
-
-
-def iou(source_brep, target_brep, db, voxel_divisor=100, pre_align=False, timeout_seconds=120):
-    """
-    Computes the Intersection over Union (IoU) between two BREP objects.
-    Runs in a subprocess with a hard timeout to avoid hangs.
-    
-    Args:
-        source_brep (str): Path to the source BREP file.
-        target_brep (str): Path to the target BREP file.
-        db (DatabaseManager): Database manager instance.
-        voxel_divisor (int): Controls voxel resolution.
-        pre_align (bool): Whether to align meshes before computing IoU.
-        timeout_seconds (int): Hard timeout in seconds.
-        
-    Returns:
-        float: IoU between the two BREP objects, or 0.0 on timeout/error.
-    """
-    result_queue = multiprocessing.Queue()
-    p = multiprocessing.Process(
-        target=_iou_worker,
-        args=(result_queue, source_brep, target_brep, db.root_dir, voxel_divisor, pre_align)
-    )
-    p.start()
-    p.join(timeout=timeout_seconds)
-    if p.is_alive():
-        p.kill()
-        p.join()
-        print(f"IoU timed out after {timeout_seconds}s for {source_brep} / {target_brep}")
-        return 0.0
-    if not result_queue.empty():
-        status, value = result_queue.get_nowait()
-        if status == "ok":
-            return value
-        else:
-            print(f"IoU error for {source_brep} / {target_brep}: {value}")
-            return 0.0
-    return 0.0
-  
-# def iou(source_brep, target_brep, db, voxel_divisor=100, pre_align=False):
-#     """
-#     Computes the Intersection over Union (IoU) between two BREP objects.
-    
-#     Args:
-#         source_brep (str): Path to the source BREP file.
-#         target_brep (str): Path to the target BREP file.
-#         db (DatabaseManager): Database manager instance for logging or retrieval.
-        
-#     Returns:
-#         float: IoU between the two BREP objects.
-#     """
-    
-#     # allows for lists of stls etc.
-#     if isinstance(source_brep, list):
-#         source_brep = source_brep[0]
-#     if isinstance(target_brep, list):
-#         target_brep = target_brep[0]
-
-#     o3d_source = o3d.io.read_triangle_mesh(osp.join(db.root_dir, source_brep))
-#     o3d_target = o3d.io.read_triangle_mesh(osp.join(db.root_dir, target_brep))
-
-
-#     if pre_align:
-#         # align the target to the source
-#         o3d_target = align_meshes(o3d_target, o3d_source)
-#         # o3d.visualization.draw_geometries([o3d_source])
-#         # o3d.visualization.draw_geometries([o3d_target])
-#         # o3d.visualization.draw_geometries([o3d_target_align])
-
-#     # # make o3d_source red and o3d_target_align blue
-#     # o3d_source.paint_uniform_color([1, 0, 0])
-#     # o3d_target.paint_uniform_color([0, 0, 1])
-
-#     # vis = o3d.visualization.Visualizer()
-#     # vis.create_window()
-#     # vis.add_geometry(o3d_source)
-#     # vis.add_geometry(o3d_target)
-
-#     # # Get render options and set transparency
-#     # render_option = vis.get_render_option()
-#     # render_option.mesh_show_back_face = True
-    
-#     # vis.run()
-    
-
-#     bbox_source = o3d_source.get_axis_aligned_bounding_box()
-#     bbox_target = o3d_target.get_axis_aligned_bounding_box()
-#     diagonal_source = np.linalg.norm(bbox_source.get_max_bound() - bbox_source.get_min_bound())
-#     diagonal_target = np.linalg.norm(bbox_target.get_max_bound() - bbox_target.get_min_bound())
-#     voxel_size = min(diagonal_source, diagonal_target) / float(voxel_divisor)
-
-#     # Compute voxel grids
-#     reference_voxel_grid = o3d.geometry.VoxelGrid.create_from_triangle_mesh(o3d_source, voxel_size=voxel_size)
-#     aligning_voxel_grid = o3d.geometry.VoxelGrid.create_from_triangle_mesh(o3d_target, voxel_size=voxel_size)
-
-#     # # show voxel grids
-#     # vis = o3d.visualization.Visualizer()
-#     # vis.create_window()
-#     # vis.add_geometry(reference_voxel_grid)
-#     # vis.add_geometry(aligning_voxel_grid)
-#     # vis.run()
-
-#     reference_voxels = set(tuple(voxel.grid_index) for voxel in reference_voxel_grid.get_voxels())
-#     aligning_voxels = set(tuple(voxel.grid_index) for voxel in aligning_voxel_grid.get_voxels())
-
-#     intersection = len(reference_voxels & aligning_voxels)
-#     union = len(reference_voxels | aligning_voxels)
-#     return float(intersection) / float(union) if union > 0 else 0.0
-
-
 def run_feature_gt_similarity_eval(config: dict, dbm: DatabaseManager, feature_key: str = "feature_dino", description: str = "dino similarity", distance_func=pair_cosine_similarity, request_type: str = "edit", distance_func_kwargs=None, force=False):
     all_requests_iterator = dbm.requests.find({"request_type": request_type})
 
@@ -509,54 +323,6 @@ def run_feature_gt_similarity_eval(config: dict, dbm: DatabaseManager, feature_k
             )
 
 
-def run_clip_similarity_eval(config: dict, dbm: DatabaseManager, text_feature_key: str = "feature_clip_text", vis_feature_key: str = "feature_clip_visual", description: str = "clip similarity", distance_func=pair_cosine_similarity, request_type: str = "text2brep"):
-    all_requests_iterator = dbm.requests.find({"request_type": request_type})
-    for request in all_requests_iterator:
-
-        gt_user = request["user"]
-        text_feature = request.get(text_feature_key, None)
-
-        # get edits with the same request id and different user
-        all_other_user_edits = dbm.edits.find({"request": request["_id"], "user": {"$ne": gt_user}})
-
-        for edit in all_other_user_edits:
-            valid_user = False
-            user = dbm.users.find_one({"_id": edit["user"]})
-            if user["_id"]  in config["benchmark_eval_users"][request_type]:
-                valid_user = True
-            if "other human" in config["benchmark_eval_users"][request_type] and user.get("is_human", True):
-                valid_user = True
-
-            if not valid_user:
-                print(f"Skipping edit {edit['_id']} because user {edit['user']} is not in benchmark_eval_users")
-                continue
-
-            brep_end_id = edit["brep_end"]
-            brep_end = dbm.breps.find_one({"_id": brep_end_id})
-
-            if brep_end is None:
-                print(f"Skipping edit {edit['_id']} because brep_end is None")
-                continue
-
-            # get the features of the end brep
-            edit_vis_feature = brep_end.get(vis_feature_key, None)
-
-            cos_sim = pair_cosine_similarity(text_feature, edit_vis_feature, db=dbm)
-
-            dbm.insert_rating(
-                user="similarity_eval",
-                edit=edit["_id"]
-            )
-            rating_id = dbm.ratings.find_one({"edit": edit["_id"], "user": "similarity_eval"})["_id"]
-            dbm.ratings.update_one(
-                {"_id": rating_id},
-                {"$set": {
-                    description: cos_sim
-                }}
-            )
-
-
-
 def main():
     # Parse command-line arguments
     args = parse_args()
@@ -567,24 +333,7 @@ def main():
 
     run_feature_gt_similarity_eval(config, dbm, feature_key="feature_dino", description="dino similarity", distance_func=pair_cosine_similarity, request_type="edit")
 
-    run_feature_gt_similarity_eval(config, dbm, feature_key="stl", description="chamfer similarity", distance_func=chamfer_similarity, request_type="edit")
-
-    run_clip_similarity_eval(config, dbm, text_feature_key="feature_clip_text", vis_feature_key="feature_clip_visual", description="clip similarity", distance_func=pair_cosine_similarity, request_type="text2brep")
+    run_feature_gt_similarity_eval(config, dbm, feature_key="stl", description="chamfer similarity norm", distance_func=chamfer_similarity_norm, request_type="edit")
 
 if __name__ == "__main__":
-
-    # create dummy db object with just a root_dir field
-    dmb = type('db', (object,), {})()
-
-    dmb.root_dir = "/path/to/edit_database/vtest/"
-    gt = "breps/sketch2brep_requester_4512737050977123573.stl"
-    human = "breps/dummy_5512737050977123574.stl"
-    print(iou(gt, human, dmb, pre_align=True, voxel_divisor=100))
-
-    # dmb.root_dir = "/path/to/edit_database/v1/"
-    # gt = "breps/3YH2WFSRM22W7DKT_1752836805.728848.stl"
-    # human = "breps/3YH2WFSRM22W7DKT_1752836805.728848.stl"
-    # print(chamfer_similarity(gt, human, dmb, pre_align=False))
-    # print(chamfer_similarity(gt, human, dmb, pre_align=True))
-
-    # main()
+    main()
