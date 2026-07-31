@@ -312,6 +312,12 @@ def cost_barplot(config: dict, dbm: DatabaseManager, request_type: str = "edit",
 
     Only models present in ``benchmark_eval_users`` that have cost data (i.e.
     non-human harness runs) are shown.
+
+    Note: this iterates every edit in the database with no request_type,
+    difficulty, or latest-edit-per-user filter. Stale or duplicate edits can
+    skew the mean. The standard pipeline calls
+    ``clean_db_single_edit_per_user_per_request()`` in ``run_all_benchmarks.py``
+    before plotting to keep cost stats honest.
     """
     models = _bar_models(config, request_type)
 
