@@ -4,7 +4,7 @@
 
 This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, based on the 3D CAD editing dataset and benchmark introduced in the paper: [neuralCAD-Edit: An Expert Benchmark for Multimodal-Instructed 3D CAD Model Editing](https://autodeskailab.github.io/neuralCAD-Edit/)
 
-fig_01
+![fig_01](img/fig_1.png)
 
 We provide:
 
@@ -61,7 +61,7 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 - `src/scripts/benchmark_inference` - scripts to run a foundation model in a harness
 - `src/scripts_grundtruth` - used to export/ingest for human labelling on AWS groundtruth
 - `src/scripts_preprocess` - cadquery_convert.py for headless STEP to STL/PNG export
-- `src/utils` - contains database, feature extraction, vlm rating etc.
+- `src/utils` - contains database, feature extraction, metric evaluation, and plotting utilities
 - `src/vlms` - a base VLM class with provider specific files which inherit
 
 
@@ -78,6 +78,30 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 - You can then use `src/notebooks/leaderboard.ipynb` to display the results.
 - Note that these give you the automatic metrics only. We'll gladly run the human evals for you.
 
+### Metrics and outputs
+
+The hackathon benchmark computes three automatic metrics (all in [0, 1], higher is better; failed or missing edits score **0.0**):
+
+| Metric | Description |
+|--------|-------------|
+| **Chamfer similarity (norm)** | Scale-invariant Chamfer distance normalized by the ground-truth bounding-box diagonal |
+| **Diff F1** | F1 between the voxel diff (start → prediction) and the voxel diff (start → ground truth) |
+| **DINOv2 similarity** | Cosine similarity of DINOv2 image features vs. the ground-truth edit |
+
+Raw Chamfer, IoU, CLIP similarity, and automatic VLM rating are **no longer computed** by the pipeline. Precomputed VLM and human ratings shipped with the dataset are still shown in `src/notebooks/leaderboard.ipynb`.
+
+After pulling metric changes, **re-run the benchmark** so new rating keys are written to your local database (older databases only have the legacy metric keys).
+
+To force recomputation after a metric definition change, set `"recompute_metrics": true` in `src/config/edit_192_external.json`.
+
+Running `src/scripts/run_all_benchmarks.py` (via `run_all.sh` / `run_all.ps1`) writes:
+
+- `data/edit_192_external/results/metric_bar_facets.png` — faceted bar chart of the three metrics across models (human baseline as a dashed reference line)
+- `data/edit_192_external/results/cost_barplot.png` — mean estimated cost per edit per model
+- `data/edit_192_external/results/all_results.json` — per-difficulty scores used by the plots
+
+The cost plot scans all edits in the database; the pipeline calls `clean_db_single_edit_per_user_per_request()` first so duplicate edits do not skew the mean. If you ingest extra edits without re-running that cleanup step, cost stats may be inflated.
+
 
 
 ### Database Schema
@@ -92,7 +116,7 @@ The dataset/benchmark is organised in a local mongita database with the followin
 
 All objects (e.g. step files) live outside the database in the file tree, and are pointed to by their relative filepaths from the database. See `src/notebooks/visualise_examples.ipynb` for example access patterns.
 
-Database Schema
+![Database Schema](img/database_schema.svg)
 
 ### Citation
 

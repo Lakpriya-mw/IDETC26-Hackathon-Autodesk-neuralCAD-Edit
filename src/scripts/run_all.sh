@@ -3,25 +3,24 @@ PYTHON_PATH=$(pwd)
 
 # 1. CadQuery harness runs
 # commented out as they're already in the database, but you can modify to do your own runs.
-MODELS=(
-    # "gemini-3-pro_cadquery-script"
-    # "gpt-5.2_cadquery-script"
-    # "claude-sonnet-4.5_cadquery-script"
-    "gpt-5.6-sol_openrouter_cadquery-script"
-)
-# Loop through all models
+# MODELS=(
+#     "gemini-3-pro_cadquery-script"
+#     # "gpt-5.2_cadquery-script"
+#     # "claude-sonnet-4.5_cadquery-script"
+# )
+# # Loop through all models
 # for model in "${MODELS[@]}"; do
 #     echo "Running harness for model: $model"
 #     PYTHONPATH=${PYTHON_PATH} python src/scripts_benchmark_inference/run_harness.py --config ${CONFIG_FILE} \
-#     --input /Users/mccartw/coding/IDETC26-Hackathon-Autodesk-neuralCAD-Edit/data/edit_192_external/parquets/val_edit_text.parquet \
-#     --output_dir /Users/mccartw/coding/IDETC26-Hackathon-Autodesk-neuralCAD-Edit/data/model_outputs \
+#     --input /path/to/edit_database/edit_v2/parquets \
+#     --output_dir /path/to/model_outputs/edit_v2 \
 #     --harness src/harnesses/cadquery_script.py \
 #     --userId "$model" \
-#     --required-extensions step 
+#     --required-extensions step
 # done
 
 # 2. If your harness outputs only .step files, run cadquery_convert.py to generate .stl and view images:
-# PYTHONPATH=${PYTHON_PATH} python src/scripts_preprocess/cadquery_convert.py  data/model_outputs
+# PYTHONPATH=${PYTHON_PATH} python src/scripts_preprocess/cadquery_convert.py <output_dir>
 
 # 3. Ingest 
 # commented out as the existing runs are already in the database, but you can modify to do your own ingests.
