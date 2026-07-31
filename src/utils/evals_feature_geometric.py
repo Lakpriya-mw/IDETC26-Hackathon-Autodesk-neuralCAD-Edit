@@ -171,7 +171,8 @@ def chamfer_similarity_norm(source_brep, target_brep, db, pre_align=False):
         pre_align (bool): Whether to align the prediction to the GT before computing.
 
     Returns:
-        float: Normalized similarity in [0, 1]. 1.0 = perfect match, 0.0 = worst.
+        float: Normalized similarity in [0, 1]. 1.0 = perfect match, 0.0 = worst
+        (including empty or unloadable geometry).
     """
     if isinstance(source_brep, list):
         source_brep = source_brep[0]

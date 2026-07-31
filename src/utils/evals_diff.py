@@ -253,6 +253,9 @@ def diff_f1(gt_rel, edit_rel, db, voxel_divisor=128, start_rel=None, pre_align=F
     ``start_rel`` defaults to the start model resolved from ``dbm`` for the edit
     ``edit_rel`` (see ``resolve_start_rel``), so the 3-argument call works like
     the older ``efg`` metrics.
+
+    Returns ``np.nan`` when meshes cannot be loaded; downstream aggregation treats
+    NaN the same as a failed edit (0.0) so models are penalized for failures.
     """
     start = start_rel if start_rel is not None else resolve_start_rel(edit_rel, db)
     start_mesh = _load_mesh(start, db)

@@ -228,12 +228,20 @@ def _bar_models(config, request_type):
     ]
 
 
+def _score_or_zero(v):
+    """Map missing or failed scores to 0.0 so models are penalized for failures."""
+    if v is None or v != v:
+        return 0.0
+    return float(v)
+
+
 def _aggregate_scores_by_metric(results: dict):
     """Collapse a results dict (task -> model -> metric -> {edit_id: score}) into
     metric -> model -> list_of_scores, pooling across all tasks/difficulties.
 
-    Missing scores (``None`` placeholders for failed/unrated edits) are counted
-    as 0.0 rather than dropped, so a model is penalized for failed runs. This
+    Missing scores (``None`` placeholders for failed/unrated edits) and NaN
+    values (e.g. from ``diff_f1`` on unloadable meshes) are counted as 0.0
+    rather than dropped, so a model is penalized for failed runs. This
     matches the leaderboard notebook, which averages every edit with a 0.0
     default for missing metrics.
     """
@@ -242,11 +250,11 @@ def _aggregate_scores_by_metric(results: dict):
         for model, metric_data in model_data.items():
             for metric, score_dict in metric_data.items():
                 if isinstance(score_dict, dict):
-                    values = [(v if v is not None else 0.0) for v in score_dict.values()]
+                    values = [_score_or_zero(v) for v in score_dict.values()]
                 elif isinstance(score_dict, list):
-                    values = [(v if v is not None else 0.0) for v in score_dict]
+                    values = [_score_or_zero(v) for v in score_dict]
                 else:
-                    values = [score_dict if score_dict is not None else 0.0]
+                    values = [_score_or_zero(score_dict)]
                 metric_model_scores.setdefault(metric, {}).setdefault(model, []).extend(values)
     return metric_model_scores
 
