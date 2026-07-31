@@ -4,7 +4,7 @@
 
 This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, based on the 3D CAD editing dataset and benchmark introduced in the paper: [neuralCAD-Edit: An Expert Benchmark for Multimodal-Instructed 3D CAD Model Editing](https://autodeskailab.github.io/neuralCAD-Edit/)
 
-fig_01
+![fig_01](img/fig_1.png)
 
 We provide:
 
@@ -92,7 +92,7 @@ The dataset/benchmark is organised in a local mongita database with the followin
 
 All objects (e.g. step files) live outside the database in the file tree, and are pointed to by their relative filepaths from the database. See `src/notebooks/visualise_examples.ipynb` for example access patterns.
 
-Database Schema
+![Database Schema](img/database_schema.svg)
 
 ### Citation
 
