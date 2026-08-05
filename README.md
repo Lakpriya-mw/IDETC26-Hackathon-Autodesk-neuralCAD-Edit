@@ -10,7 +10,7 @@ We provide:
 
 - [The problem statement PDF.](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
 - [The introductory presentation.]()
-- A dataset of 48 text-based editing requests and associated edits.
+- [A dataset of 48 text-based editing requests and associated edits](https://myshare.autodesk.com/:u:/g/personal/daniele_grandi_autodesk_com/IQAT9e3wi76SQ6zqJX6uCAn_AQ-6SOrZbl44TW_GuRkJbXo?e=iDQ8CG).
 - Code for accessing the data.
 - Notebooks for visualising and analysing the data.
 - Harness code which allows foundation models to perform edits with iterative cadquery script refinement.
@@ -46,7 +46,7 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 >
 > **Use the data linked below for this competition, do *not* use previous versions of the dataset.**
 
-1. Download and extract the pre-computed database zip into `data/edit_192_external` (or another location and update `storage_dir` in `src/config/edit_192_external.json`). The slimmed hackathon dataset contains 48 text-conditioned edit requests with paper-matching DINO features, human GT edits, and foundation-model baselines.
+1. [Download the pre-computed database zip](https://myshare.autodesk.com/:u:/g/personal/daniele_grandi_autodesk_com/IQAT9e3wi76SQ6zqJX6uCAn_AQ-6SOrZbl44TW_GuRkJbXo?e=iDQ8CG) and extract it into `data/edit_192_external` (or another location and update `storage_dir` in `src/config/edit_192_external.json`). The slimmed hackathon dataset contains 48 text-conditioned edit requests with paper-matching DINO features, human GT edits, and foundation-model baselines.
 2. To keep only text-conditioned requests in the database, run `uv run python src/scripts/filter_dataset_text_only.py --config src/config/edit_192_external.json`.
 3. Try using `src/notebooks/visualise_examples.ipynb` to look at some of the data.
 
