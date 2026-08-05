@@ -8,8 +8,8 @@ relative to the pre-edit (start) model:
     surface_diff_chamfer - chamfer distance between the *surface changes*
 
 All three share the repo-wide metric signature used by
-``src.utils.evals_feature_geometric`` (``efg.iou``, ``efg.chamfer_similarity``,
-``efg.chamfer_similarity_norm`` etc.)::
+``src.utils.evals_feature_geometric`` (``efg.chamfer_similarity_norm``,
+``efg.compute_chamfer_distance``, ``efg.align_meshes`` etc.)::
 
     metric(gt_rel, edit_rel, db, **kwargs) -> float
 
@@ -253,6 +253,9 @@ def diff_f1(gt_rel, edit_rel, db, voxel_divisor=128, start_rel=None, pre_align=F
     ``start_rel`` defaults to the start model resolved from ``dbm`` for the edit
     ``edit_rel`` (see ``resolve_start_rel``), so the 3-argument call works like
     the older ``efg`` metrics.
+
+    Returns ``np.nan`` when meshes cannot be loaded; downstream aggregation treats
+    NaN the same as a failed edit (0.0) so models are penalized for failures.
     """
     start = start_rel if start_rel is not None else resolve_start_rel(edit_rel, db)
     start_mesh = _load_mesh(start, db)
