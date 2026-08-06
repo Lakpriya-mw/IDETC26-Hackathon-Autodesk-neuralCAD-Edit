@@ -361,7 +361,7 @@ class BaseVLM(ABC):
 
         return messages
     
-    def visual_update_loop(self, instruction_text, task_info_dict, harness_script_file, output_dir, max_iters=10, run_function=None, conversation_instruction="", output_script_key=None):
+    def visual_update_loop(self, instruction_text, task_info_dict, harness_script_file, output_dir, max_iters=10, run_function=None, conversation_instruction="", output_script_key=None, input_file=None):
         if run_function is None:
             raise ValueError("run_function must be provided to visual_update_loop")
         
@@ -414,7 +414,7 @@ class BaseVLM(ABC):
                 break
 
             # run the script in FreeCAD
-            program_output = run_function(script, harness_script_file, output_dir)
+            program_output = run_function(script, harness_script_file, output_dir, input_file=input_file)
 
             # Logging iteration outputs
             iteration_dir = os.path.join(output_dir, "iteration_output")
@@ -507,7 +507,7 @@ class BaseVLM(ABC):
         You will then have the opportunity to refine your function based on this feedback, and it will be re-executed.
         Continue this process until the task is complete, or you reach the maximum number of iterations.
 
-        If an input file is provided as a brep_start_path in the task information, you should use .step. For these cases, you might need to print out debug information once the model is loaded in your first iteration.
+        If the task involves editing an existing model, the path to that model's .step file is passed to your function as args["input_file"], and is also listed as brep_start_path_step in the task information. Load it from args["input_file"] rather than hard-coding a path. For these cases, you might need to print out debug information once the model is loaded in your first iteration.
 
         Return a json object with two fields. Do not include any other text outside of the json object in your response:
         'complete': true if the task has been completed. IMPORTANT: This should only be judged by looking at the output from the last iteration, not whether a function has been returned this iteration. If there is no valid output that corresponds to the instruction, the task is not complete. The first iteration can never be complete. If this is true, then the current function will NOT be executed, and the function from the last iteration will be used.
@@ -516,6 +516,12 @@ class BaseVLM(ABC):
 
         """
 
+        input_file = None
+        for key in ("brep_start_path_step", "brep_start_path_stp"):
+            if task_info_dict.get(key):
+                input_file = task_info_dict[key]
+                break
+
         return self.visual_update_loop(
             instruction_text=instruction_text,
             task_info_dict=task_info_dict,
@@ -523,6 +529,7 @@ class BaseVLM(ABC):
             output_dir=output_dir,
             max_iters=max_iters,
             run_function=self.run_cadquery_script,
-            conversation_instruction=conversation_instruction
+            conversation_instruction=conversation_instruction,
+            input_file=input_file
         )
     
