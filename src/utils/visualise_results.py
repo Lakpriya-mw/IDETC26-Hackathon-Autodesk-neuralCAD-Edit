@@ -21,8 +21,8 @@ def parse_rating(rating: dict) -> dict:
 
     if rating["user"] == "similarity_eval":
         return_dict = {}
-        if "dino similarity gt" in rating:
-            return_dict["dino-v2_similarity"] = rating["dino similarity gt"]
+        if "volume f1 gt" in rating:
+            return_dict["volume_f1"] = rating["volume f1 gt"]
         if "chamfer similarity norm gt" in rating:
             return_dict["chamfer_similarity_norm"] = rating["chamfer similarity norm gt"]
         if "diff f1 gt" in rating:
@@ -122,7 +122,7 @@ def display_rating_results(config: dict, dbm: DatabaseManager, difficulty: str =
 METRIC_DISPLAY_NAMES = {
     "chamfer_similarity_norm": "Chamfer similarity (norm)",
     "diff_f1": "Diff F1",
-    "dino-v2_similarity": "DINOv2 similarity",
+    "volume_f1": "Volume F1",
 }
 
 BASELINE_MODELS = {
@@ -272,7 +272,7 @@ def faceted_bar_plot(config: dict, results: dict, request_type: str = "edit", me
     metric_model_scores = _aggregate_scores_by_metric(results)
 
     if metrics is None:
-        metrics = [m for m in ["chamfer_similarity_norm", "diff_f1", "dino-v2_similarity"] if m in metric_model_scores]
+        metrics = [m for m in ["chamfer_similarity_norm", "volume_f1", "diff_f1"] if m in metric_model_scores]
         metrics += [m for m in metric_model_scores if m not in metrics]
 
     models = _bar_models(config, request_type)
