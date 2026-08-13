@@ -85,10 +85,12 @@ The hackathon benchmark computes three automatic metrics (all in [0, 1], higher 
 | Metric | Description |
 |--------|-------------|
 | **Chamfer similarity (norm)** | Scale-invariant Chamfer distance normalized by the ground-truth bounding-box diagonal |
+| **Volume F1** | F1 between the GT and model output |
 | **Diff F1** | F1 between the voxel diff (start → prediction) and the voxel diff (start → ground truth) |
-| **DINOv2 similarity** | Cosine similarity of DINOv2 image features vs. the ground-truth edit |
 
-Raw Chamfer, IoU, CLIP similarity, and automatic VLM rating are **no longer computed** by the pipeline. Precomputed VLM and human ratings shipped with the dataset are still shown in `src/notebooks/leaderboard.ipynb`.
+The first two measures compare the final model output and the groundtruth edit, however we are measuring *edits*, not *generations*. Diff F1 compares the deltas-- i.e. it looks at the change in volume between the input model and edited model, and compares this with the change in the groundtruth edit.
+
+Raw Chamfer, IoU, CLIP similarity, Dino similarity, and automatic VLM rating are **no longer computed** by the pipeline. Precomputed VLM and human ratings shipped with the dataset are still shown in `src/notebooks/leaderboard.ipynb`.
 
 After pulling metric changes, **re-run the benchmark** so new rating keys are written to your local database (older databases only have the legacy metric keys).
 

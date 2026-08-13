@@ -207,7 +207,7 @@ def _f1_from_masks(mask_a, mask_b):
 
 
 # --- metrics ----------------------------------------------------------------
-def volumetric_f1(gt_rel, edit_rel, dbm, voxel_divisor=128, pre_align=False, fill=None):
+def volumetric_f1(gt_rel, edit_rel, db, voxel_divisor=128, pre_align=False, fill=None):
     """Volumetric F1 between two breps via voxel occupancy (higher = better, [0, 1]).
 
     Both meshes are voxelized on a *shared* grid (common origin + voxel size);
@@ -216,8 +216,8 @@ def volumetric_f1(gt_rel, edit_rel, dbm, voxel_divisor=128, pre_align=False, fil
     voxel_size follows the repo's IoU convention: min(bbox diag) / voxel_divisor.
     Occupancy is solid-filled by default (fill=None -> FILL_SOLID).
     """
-    gt_mesh = _load_mesh(gt_rel, dbm)
-    pred_mesh = _load_mesh(edit_rel, dbm)
+    gt_mesh = _load_mesh(gt_rel, db)
+    pred_mesh = _load_mesh(edit_rel, db)
     if gt_mesh is None or pred_mesh is None:
         return np.nan
     if pre_align:
