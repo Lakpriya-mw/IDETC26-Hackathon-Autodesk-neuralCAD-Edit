@@ -9,7 +9,7 @@ This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, b
 We provide:
 
 - [The problem statement PDF.](./Autodesk%20One-Page-Problem-Statement-CIE-Hackathon_2026.pdf)
-- [The introductory presentation.](https://myshare.autodesk.com/:p:/g/personal/daniele_grandi_autodesk_com/IQD7kvs0GxyuSqM06rkRUDT3AbySY50fq01jyq3KHc28XpY?e=ZSUQpi)
+- [The introductory presentation.](./Autodesk%20hackathon%20introduction%20-%20idetc%202026.pdf)
 - [A dataset of 48 text-based editing requests and associated edits](https://myshare.autodesk.com/:u:/g/personal/daniele_grandi_autodesk_com/IQAT9e3wi76SQ6zqJX6uCAn_AQ-6SOrZbl44TW_GuRkJbXo?e=iDQ8CG).
 - Code for accessing the data.
 - Notebooks for visualising and analysing the data.
