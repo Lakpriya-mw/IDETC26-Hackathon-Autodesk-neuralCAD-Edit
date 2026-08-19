@@ -4,7 +4,7 @@
 
 This repo contains the code for the Autodesk neuralCAD-Edit hackathon problem, based on the 3D CAD editing dataset and benchmark introduced in the paper: [neuralCAD-Edit: An Expert Benchmark for Multimodal-Instructed 3D CAD Model Editing](https://autodeskailab.github.io/neuralCAD-Edit/)
 
-![fig_01](img/fig_1.png)
+fig_01
 
 We provide:
 
@@ -78,15 +78,19 @@ Run scripts with `uv run python ...` or set `PYTHONPATH` to the repo root.
 - You can then use `src/notebooks/leaderboard.ipynb` to display the results.
 - Note that these give you the automatic metrics only. We'll gladly run the human evals for you.
 
+
+
 ### Metrics and outputs
 
 The hackathon benchmark computes three automatic metrics (all in [0, 1], higher is better; failed or missing edits score **0.0**):
 
-| Metric | Description |
-|--------|-------------|
-| **Chamfer similarity (norm)** | Scale-invariant Chamfer distance normalized by the ground-truth bounding-box diagonal |
-| **Volume F1** | F1 between the GT and model output |
-| **Diff F1** | F1 between the voxel diff (start → prediction) and the voxel diff (start → ground truth) |
+
+| Metric                        | Description                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| **Chamfer similarity (norm)** | Scale-invariant Chamfer distance normalized by the ground-truth bounding-box diagonal    |
+| **Volume F1**                 | F1 between the GT and model output                                                       |
+| **Diff F1**                   | F1 between the voxel diff (start → prediction) and the voxel diff (start → ground truth) |
+
 
 The first two measures compare the final model output and the groundtruth edit, however we are measuring *edits*, not *generations*. Diff F1 compares the deltas-- i.e. it looks at the change in volume between the input model and edited model, and compares this with the change in the groundtruth edit.
 
@@ -104,8 +108,6 @@ Running `src/scripts/run_all_benchmarks.py` (via `run_all.sh` / `run_all.ps1`) w
 
 The cost plot scans all edits in the database; the pipeline calls `clean_db_single_edit_per_user_per_request()` first so duplicate edits do not skew the mean. If you ingest extra edits without re-running that cleanup step, cost stats may be inflated.
 
-
-
 ### Database Schema
 
 The dataset/benchmark is organised in a local mongita database with the following schemas
@@ -118,7 +120,52 @@ The dataset/benchmark is organised in a local mongita database with the followin
 
 All objects (e.g. step files) live outside the database in the file tree, and are pointed to by their relative filepaths from the database. See `src/notebooks/visualise_examples.ipynb` for example access patterns.
 
-![Database Schema](img/database_schema.svg)
+### Submission Instructions
+
+Please submit your work using a **descriptive team name**. Use that name consistently in places like your PR title and your video filename, so we can easily identify and grade your submission.
+
+#### 1. Code (pull request)
+
+This repository is public and you will not have write access, so you must **fork it first**:
+
+1. Fork this repo to your own GitHub account (click "Fork" in the top-right of the GitHub page).
+2. Clone your fork and create a branch, e.g. `<your-team-name>/submission`.
+3. Add your code/changes, committing to a folder such as `submissions/<your-team-name>/` where appropriate (see below for what to include).
+4. Push your branch to your fork.
+5. Open a pull request from your fork/branch into this repo's main branch. Title the PR with your team name, e.g. `[Team Name] Final submission`.
+
+Please make sure your PR includes:
+
+- **Code** — your final code, submitted as the pull request itself.
+- **Output CAD files** (`.step` and `.stl`) — included in the repository (e.g. under your team's submission folder).
+- **Scores**, computed using the metrics/code we provide (see [Metrics and outputs](#metrics-and-outputs) above):
+  - Surface Chamfer similarity
+  - Volumetric F1 similarity
+  - **Volumetric Difference F1 similarity** ← most important metric!
+- **Final presentation** — a PDF of your presentation, included in the repository. It should include:
+  - An overview of your method
+  - Your final scores (`metric_bar_facets.png`)
+  - One slide with images of the 5 selected test examples used for qualitative evaluation (the `request_id`s below)
+
+```python
+test_example_request_ids = [
+    'SUJ2G2UMJQR7PMBX_1759209987.785593',
+    '3YH2WFSRM22W7DKT_1769773335.525203',
+    'B7A2N74ZJBF9MZHU_1770174133.012106',
+    'F332D3FXML85WLR2_1769607142.566352',
+    'ZK22J6VYRKQ2RTFD_1758874422.1403751',
+]
+```
+
+
+
+#### 2. Presentation video (3 minutes)
+
+Upload a 3-minute video presentation of your team's approach and results to this shared Google Drive folder:
+
+[Submit your video here](https://drive.google.com/drive/folders/1ibQAJ_Hcm3lBDWCrwcw3ljWQfxvqHqw7?usp=drive_link)
+
+Name your video file with your team name, e.g. `<your-team-name>.mp4`.
 
 ### Citation
 
