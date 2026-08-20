@@ -1,0 +1,113 @@
+{
+  "user_id": "claude-sonnet-4.5_agentic",
+  "difficulty_filter": null,
+  "n_attempted": 9,
+  "n_requests_in_scope": 48,
+  "metrics": [
+    "chamfer_similarity_norm",
+    "volume_f1",
+    "diff_f1"
+  ],
+  "subset_mean": {
+    "chamfer_similarity_norm": 0.9782447735519386,
+    "volume_f1": 0.8841858848317027,
+    "diff_f1": 0.018790965342422312
+  },
+  "full_benchmark_mean_missing_as_zero": {
+    "chamfer_similarity_norm": 0.1834208950409885,
+    "volume_f1": 0.16578485340594426,
+    "diff_f1": 0.0035233060017041836
+  },
+  "per_request": {
+    "4E22SJE7QVTSP2E3_1758737060.465216": {
+      "difficulty": "easy",
+      "request_text": "Change that vertical slot to cut through complete body to decrease weight",
+      "chamfer_similarity_norm": 0.985469146633127,
+      "volume_f1": 0.9492706471513644,
+      "diff_f1": 0.0
+    },
+    "4E22SJE7QVTSP2E3_1758737118.288898": {
+      "difficulty": "medium",
+      "request_text": "Insert screws to both holes to be able to fix tool on the table",
+      "chamfer_similarity_norm": 0.9883735711862934,
+      "volume_f1": 0.9638804420381221,
+      "diff_f1": 0.16230936819172112
+    },
+    "4E22SJE7QVTSP2E3_1758737238.499021": {
+      "difficulty": "hard",
+      "request_text": "Design a fixation rod mounted from the top with arm length 200mm to have ability to fix cutting product",
+      "chamfer_similarity_norm": 0.9402029266176585,
+      "volume_f1": 0.9094322543875824,
+      "diff_f1": 0.0
+    },
+    "SUJ2G2UMJQR7PMBX_1759209917.917027": {
+      "difficulty": "easy",
+      "request_text": "Hi , Please remove the fillet at the front center and add a 1 millimeter chamfer instead",
+      "chamfer_similarity_norm": 0.9915437510132796,
+      "volume_f1": 0.9845575959933222,
+      "diff_f1": 0.0
+    },
+    "SUJ2G2UMJQR7PMBX_1759209987.785593": {
+      "difficulty": "medium",
+      "request_text": "Hi , Please convert the round edges of the gear into straight spur gear teeth. ",
+      "chamfer_similarity_norm": 0.9662996048005839,
+      "volume_f1": 0.4302742868401424,
+      "diff_f1": 0.0042770758566442165
+    },
+    "SUJ2G2UMJQR7PMBX_1759210049.432666": {
+      "difficulty": "hard",
+      "request_text": "Hi , Please change the center flower type profile into a hexagonal profile for better torque transfer",
+      "chamfer_similarity_norm": 0.9894206907037681,
+      "volume_f1": 0.97306376099599,
+      "diff_f1": 0.0
+    },
+    "ZK22J6VYRKQ2RTFD_1758873912.731081": {
+      "difficulty": "medium",
+      "request_text": "Add a 1.5 millimetre rib to increase support and make the structure strong.",
+      "chamfer_similarity_norm": 0.9665727365254476,
+      "volume_f1": 0.770280252009559,
+      "diff_f1": 0.00015129165248307426
+    },
+    "ZK22J6VYRKQ2RTFD_1758874422.1403751": {
+      "difficulty": "hard",
+      "request_text": "Add a connecting hole of 1.7 millimetre diameter and apply 0.1 millimetre grooves to increase grip and prevent slipping.",
+      "chamfer_similarity_norm": 0.9872765677450366,
+      "volume_f1": 0.9800789235962535,
+      "diff_f1": 0.002380952380952381
+    },
+    "ZK22J6VYRKQ2RTFD_1758875163.609787": {
+      "difficulty": "easy",
+      "request_text": "Add 0.2 mm chamfer to the hole edges to improve fitting.",
+      "chamfer_similarity_norm": 0.9890439667422526,
+      "volume_f1": 0.9968348004729883,
+      "diff_f1": 0.0
+    }
+  },
+  "same_subset_comparison": {
+    "claude-sonnet-4.5_cadquery-script": {
+      "n": 4,
+      "chamfer_similarity_norm": 0.9186323795974317,
+      "volume_f1": 0.5419733456605518,
+      "diff_f1": 0.007269681450183497
+    },
+    "gemini-3-pro_cadquery-script": {
+      "n": 8,
+      "chamfer_similarity_norm": 0.9207427301679788,
+      "volume_f1": 0.7666657403797691,
+      "diff_f1": 0.21593898594467856
+    },
+    "gpt-5.2_cadquery-script": {
+      "n": 9,
+      "chamfer_similarity_norm": 0.9706740965494538,
+      "volume_f1": 0.922334306256661,
+      "diff_f1": 0.08884436630564357
+    },
+    "other human": {
+      "n": 9,
+      "chamfer_similarity_norm": 0.9899590698776612,
+      "volume_f1": 0.989704326668929,
+      "diff_f1": 0.6478753482599922
+    }
+  },
+  "note": "subset_mean covers only the requests actually attempted. full_benchmark_mean_missing_as_zero is what run_all_benchmarks.py reports and counts every unattempted request as 0.0."
+}

@@ -1,0 +1,32 @@
+# lw_solution dependencies. Python 3.12 (cadquery does not support 3.13+).
+#
+#   conda create -y -n neuralcad-edit python=3.12
+#   conda activate neuralcad-edit
+#   pip install -r lw_solution_v2/requirements.txt
+
+# --- harness core (needed to RUN the agent) ---------------------------------
+pandas
+pyarrow
+cadquery
+json-repair
+
+# --- model providers (install the one you use; all four are cheap) ----------
+anthropic
+openai
+google-genai
+
+# --- evaluation pipeline (needed to SCORE, imported by src/) ----------------
+mongita
+open3d
+scipy
+scikit-learn
+matplotlib
+torch
+transformers
+pillow
+itables
+
+# probreg: imported at module scope by the evaluation but only called behind
+# pre_align=True, which no metric uses. Installs normally on Linux/macOS; on
+# Windows it has no Python 3.12 wheel and needs a C++ toolchain.
+probreg
